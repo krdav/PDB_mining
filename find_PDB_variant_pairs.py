@@ -1092,7 +1092,7 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
     m2 = s2[0]
 
     # And run DSSP:
-    # Notice that the two returned dictionaries are parsed to throwaway variables.
+    # Notice that the two returned dictionaries are passed to throwaway variables.
     # DSSP is part of Bio.PDB:
     _dssp1 = DSSP(m1, dest1, 'dssp', 'Wilke', 'PDB')
     _dssp2 = DSSP(m2, dest2, 'dssp', 'Wilke', 'PDB')
@@ -1100,6 +1100,8 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
     # Extract the list of residue objects:
     res_list1_dssp = list(list(s1[0].get_chains())[0].get_residues())
     res_list2_dssp = list(list(s2[0].get_chains())[0].get_residues())
+    assert(len(res_list1_dssp) == len(res_list1))
+    assert(len(res_list2_dssp) == len(res_list2))
 
     # Add the xtra data from the old residue lists:
     for idx in range(len(res_list1_dssp)):
@@ -1747,7 +1749,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
 
 if __name__ == "__main__":
     # Define input variables:
-    res = 2.5           # Use minimum 2.5Å resolution
+    res = 2.5           # Use minimum 2.5A resolution
     min_seq_len = 60    # Minimum sequence length to avoid small unstructured proteins
     pair_distance = 1   # The hamming distance of the pairs to mine for
 
