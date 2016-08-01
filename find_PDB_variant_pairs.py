@@ -676,6 +676,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
 
     # Make a list of all the PDBs in the pair tuple:
     pdbs = pair[0].split('-') + pair[1].split('-')
+    print(pdbs)
     missing = list()
     # Then loop through all these PDBs and move them to the folder:
     for idx, chainID in enumerate(pdbs):
@@ -700,12 +701,12 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                 # If residue in blacklist skip the pair:
                 elif line[0:6] == 'HETATM' and line[21] == chain_name and line[17:20] in blacklist:
                     print('Residue found in blacklist', pdb_file)
-                    missing.apppend(chainID)
+                    missing.append(chainID)
                     break
         fh_out.close()
     # Remake the pair tuple, if any missing files or blacklisted residues:
-    p1 = [pdb for pdb in pair[0] if pdb not in missing]
-    p2 = [pdb for pdb in pair[1] if pdb not in missing]
+    p1 = [pdb for pdb in pair[0].split('-') if pdb not in missing]
+    p2 = [pdb for pdb in pair[1].split('-') if pdb not in missing]
     pair = ('-'.join(p1), '-'.join(p2), pair[2])
     print(pair)
     return(pair_folder, pair)
