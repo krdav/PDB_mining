@@ -707,6 +707,9 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
     # Remake the pair tuple, if any missing files or blacklisted residues:
     p1 = [pdb for pdb in pair[0].split('-') if pdb not in missing]
     p2 = [pdb for pdb in pair[1].split('-') if pdb not in missing]
+    if len(p1) == 0 or len(p2) == 0:
+        shutil.rmtree(pair_folder)
+        raise Exception('Pair broken under folder creation. Either by blacklisted residue or missing file.')
     pair = ('-'.join(p1), '-'.join(p2), pair[2])
     print(pair)
     return(pair_folder, pair)
