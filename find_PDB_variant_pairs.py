@@ -685,7 +685,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
         pdb_path = '{}/{}/pdb{}.ent.gz'.format(pdb_folder, folder_key, pdb_file)
         fh_out = open('{}/{}'.format(pair_folder, pdb_file), 'w')
         # See if the file exists:
-        if not shutil.rmtree(pdb_path):
+        if not os.path.exists(pdb_path):
             missing.apppend(pdb_file)
             continue
         # Notice this is opened directly as gzipped and therefore comes in binary:
