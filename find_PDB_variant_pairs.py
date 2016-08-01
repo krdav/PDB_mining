@@ -828,7 +828,6 @@ def missing_Calpha_residue_list(res_list1, res_list2):
     '''
     Returns two lists of the carbon shared alpha objects between two biopython PDB object.
     '''
-    assert(len(res_list1) == len(res_list2))
     for idx in range(0, len(res_list1)):
         if 'CA' in res_list1[idx] and 'CA' in res_list2[idx]:
             pass
@@ -1695,10 +1694,6 @@ def mp_worker(pair_info):
             res_list1 = list(pdb_obj1[0][chain1].get_residues())
             res_list2 = list(pdb_obj2[0][chain2].get_residues())
 
-            if missing_Calpha_residue_list(res_list1, res_list2):
-                print('A C-alpha was missing in a residue. The pair is skipped:', single_pair)
-                continue
-
             # Start getting possible protein-protein interactions
             # on the untouched pdb object and residue list:
             try:
@@ -1721,11 +1716,16 @@ def mp_worker(pair_info):
                 print(e)
                 continue
 
-            # Cut out the crystal defects:
-            res_list1, res_list2 = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair)
-            if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
-                print('Bad crystal', single_pair, mut_pos_seq)
+            # By now all the residues should have a C-alpha:
+            if missing_Calpha_residue_list(res_list1, res_list2):
+                print('A C-alpha was missing in a residue. The pair is skipped:', single_pair)
                 continue
+            else:
+                # Cut out the crystal defects:
+                res_list1, res_list2 = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair)
+                if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
+                    print('Bad crystal', single_pair, mut_pos_seq)
+                    continue
 
             # Now add DSSP information to the pruned residue list:
             try:
