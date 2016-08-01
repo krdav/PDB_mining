@@ -707,6 +707,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
     p1 = [pdb for pdb in pair[0] if pdb not in missing]
     p2 = [pdb for pdb in pair[1] if pdb not in missing]
     pair = ('-'.join(p1), '-'.join(p2), pair[2])
+    print(pair)
     return(pair_folder, pair)
 
 
