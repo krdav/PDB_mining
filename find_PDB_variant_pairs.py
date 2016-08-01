@@ -11,10 +11,10 @@ import contextlib
 import multiprocessing
 import argparse
 # Updated biopython on Computerome:
-if os.uname()[1] == 'computerome02':
-    sys.path.insert(0, '/home/projects/cu_10020/apps/python3-site-packages/lib/python/')
+# if os.uname()[1] == 'computerome02':
+#     sys.path.insert(0, '/home/projects/cu_10020/apps/python3-site-packages/lib/python/')
+sys.path.insert(0, '/home/projects/cu_10020/apps/python3-site-packages/lib/python/')
 from Bio.PDB import *
-
 
 # Build commandline parser:
 parser = argparse.ArgumentParser(description="Mine PDB for variant chain pairs.")
@@ -263,7 +263,7 @@ def parse_biolip(biolip_fnam, cache_dir):
 
     # Do the parsing:
     biolip_dict = dict()
-    with open(biolip_fnam, 'r') as infile:
+    with open(biolip_fnam, encoding='utf-8') as infile:
         infile_lines = infile.readlines()
         # Remove the header:
         infile_lines.pop(0)
@@ -1094,8 +1094,8 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
     # And run DSSP:
     # Notice that the two returned dictionaries are parsed to throwaway variables.
     # DSSP is part of Bio.PDB:
-    _dssp1 = DSSP(m1, dest1, 'dssp', 'Wilke')
-    _dssp2 = DSSP(m2, dest2, 'dssp', 'Wilke')
+    _dssp1 = DSSP(m1, dest1, 'dssp', 'Wilke', 'PDB')
+    _dssp2 = DSSP(m2, dest2, 'dssp', 'Wilke', 'PDB')
 
     # Extract the list of residue objects:
     res_list1_dssp = list(list(s1[0].get_chains())[0].get_residues())
@@ -1129,8 +1129,8 @@ def add_dssp_to_pdb_obj(pair_folder, single_pair, pdb_obj1, pdb_obj2):
     # Run DSSP:
     # Notice that the two returned dictionaries are parsed to throwaway variables.
     # DSSP is part of Bio.PDB:
-    _dssp1 = DSSP(pdb_obj1[0], dest1, 'dssp', 'Wilke')
-    _dssp2 = DSSP(pdb_obj2[0], dest2, 'dssp', 'Wilke')
+    _dssp1 = DSSP(pdb_obj1[0], dest1, 'dssp', 'Wilke', 'PDB')
+    _dssp2 = DSSP(pdb_obj2[0], dest2, 'dssp', 'Wilke', 'PDB')
 
     return(pdb_obj1, pdb_obj2)
 
@@ -1618,11 +1618,11 @@ def mp_worker(pair_info):
     mut_pos_seq = pair_tuple[2][0]
     # Create a tmp folder for this pair and move the PDB files needed:
     pair_folder = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
-    os.chdir(pair_folder)
     # If something went wrong, e.g. the file does not exists:
     if not pair_folder:
         print('No pair folder, something went wrong', pdbs_tuple)
         return()
+    os.chdir(pair_folder)
 
     # Loop through the all pairs:
     for i in range(len(pdbs_tuple[0])):
@@ -1776,4 +1776,4 @@ if __name__ == "__main__":
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
     # Do all the calculation in a parallel pool and print the results:
-    mp_handler(pairs1, args.ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
+    mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
