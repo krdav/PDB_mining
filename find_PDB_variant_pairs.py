@@ -1738,7 +1738,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     print_header(result_file)
     # Continue printing the results from each process in the pool:
     with open(result_file, 'a') as fh:
-        for result in pool.imap(mp_worker, pair_info_list):
+        for result in pool.imap_unordered(mp_worker, pair_info_list):
             if result:
                 fh.write(result)
     pool.close()
