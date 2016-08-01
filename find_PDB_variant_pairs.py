@@ -1108,8 +1108,14 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
         # Store the monomeric DSSP values by another name:
         # res_list1_dssp[idx].xtra['SS_DSSP_trim'] = res_list1_dssp[idx].xtra['SS_DSSP']  # The real secondary structure annotation comes from the full crystal
         # res_list2_dssp[idx].xtra['SS_DSSP_trim'] = res_list2_dssp[idx].xtra['SS_DSSP']  # The real secondary structure annotation comes from the full crystal
-        res_list1_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_ASA']
-        res_list2_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_ASA']
+        if 'EXP_DSSP_ASA' not in res_list1_dssp[idx].xtra:
+            print('res_list1, idx:', idx)
+        else:
+            res_list1_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_ASA']
+        if 'EXP_DSSP_ASA' not in res_list2_dssp[idx].xtra:
+            print('res_list1, idx:', idx)
+        else:
+            res_list2_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_ASA']
         res_list1_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_RASA']
         res_list2_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_RASA']
         # Then update the DSSP values with the full PDB entry values:
@@ -1684,7 +1690,7 @@ def mp_worker(pair_info):
             try:
                 res_list1, res_list2 = add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser)
             except Exception as e:
-                print(single_pair, 'run_dssp')
+                print(single_pair, 'add_dssp_to_reslist')
                 print(e)
                 continue
 
