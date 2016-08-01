@@ -709,6 +709,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
     p2 = [pdb for pdb in pair[1].split('-') if pdb not in missing]
     if len(p1) == 0 or len(p2) == 0:
         shutil.rmtree(pair_folder)
+        # return(False)
         raise Exception('Pair broken under folder creation. Either by blacklisted residue or missing file.')
     pair = ('-'.join(p1), '-'.join(p2), pair[2])
     print(pair)
@@ -1670,7 +1671,6 @@ def mp_worker(pair_info):
     try:
         pair_folder, pair_tuple = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
     except:
-        print(create_pair_folder, 'get_interactions')
         print(e)
         return(False)
     pdbs_tuple = (tuple(pair_tuple[0].split('-')), tuple(pair_tuple[1].split('-')))
