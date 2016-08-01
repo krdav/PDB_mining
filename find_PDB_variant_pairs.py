@@ -1116,8 +1116,14 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
             print('res_list1, idx:', idx)
         else:
             res_list2_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_ASA']
-        res_list1_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_RASA']
-        res_list2_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_RASA']
+        if 'EXP_DSSP_RASA' not in res_list1_dssp[idx].xtra:
+            print('res_list1, idx:', idx)
+        else:
+            res_list1_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_RASA']
+        if 'EXP_DSSP_RASA' not in res_list2_dssp[idx].xtra:
+            print('res_list1, idx:', idx)
+        else:
+            res_list2_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_RASA']
         # Then update the DSSP values with the full PDB entry values:
         res_list1_dssp[idx].xtra.update(res_list1[idx].xtra)
         res_list2_dssp[idx].xtra.update(res_list2[idx].xtra)
