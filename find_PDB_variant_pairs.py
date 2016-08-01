@@ -676,6 +676,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
 
     # Make a list of all the PDBs in the pair tuple:
     pdbs = pair[0].split('-') + pair[1].split('-')
+    missing = list()
     # Then loop through all these PDBs and move them to the folder:
     for pdb_file in pdbs:
         chain_id = pdb_file[-1]
@@ -683,31 +684,30 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
         folder_key = pdb_file[1:3]  # Notice this is PDB convention and for custom files this should be a adapted
         pdb_path = '{}/{}/pdb{}.ent.gz'.format(pdb_folder, folder_key, pdb_file)
         fh_out = open('{}/{}'.format(pair_folder, pdb_file), 'w')
+        # See if the file exists:
+        if not shutil.rmtree(pdb_path):
+            missing.apppend(pdb_file)
+            continue
         # Notice this is opened directly as gzipped and therefore comes in binary:
-        try:  # If the file exists
-            with gzip.open(pdb_path, 'r') as fh_in:
-                lines = fh_in.readlines()
-                for line in lines:
-                    # Decode from binary to unicode:
-                    line = str(line, 'utf-8')
-                    # Then only keep 'ATOM' cards or HETATM on the whitelist:
-                    if line[0:6] == 'ATOM  ' or (line[0:6] == 'HETATM' and line[17:20] in whitelist):
-                        print(line, file=fh_out, end='')
-                    # If residue in blacklist skip the pair:
-                    elif line[0:6] == 'HETATM' and line[21] == chain_id and line[17:20] in blacklist:
-                        print('Residue found in blacklist', pdb_file)
-                        # Clean-up:
-                        shutil.rmtree(pair_folder)
-                        return(False)
-        except Exception as e:
-            print(e)
-            print(pdb_path, 'probably missing')
-            # Clean-up:
-            shutil.rmtree(pair_folder)
-            return(False)
-
+        with gzip.open(pdb_path, 'r') as fh_in:
+            lines = fh_in.readlines()
+            for line in lines:
+                # Decode from binary to unicode:
+                line = str(line, 'utf-8')
+                # Then only keep 'ATOM' cards or HETATM on the whitelist:
+                if line[0:6] == 'ATOM  ' or (line[0:6] == 'HETATM' and line[17:20] in whitelist):
+                    print(line, file=fh_out, end='')
+                # If residue in blacklist skip the pair:
+                elif line[0:6] == 'HETATM' and line[21] == chain_id and line[17:20] in blacklist:
+                    print('Residue found in blacklist', pdb_file)
+                    missing.apppend(pdb_file)
+                    break
         fh_out.close()
-    return(pair_folder)
+    # Remake the pair tuple, if any missing files or blacklisted residues:
+    p1 = [pdb for pdb in pair[0] if pdb not in missing]
+    p2 = [pdb for pdb in pair[1] if pdb not in missing]
+    pair = ('-'.join(p1), '-'.join(p2), pair[2])
+    return(pair_folder, pair)
 
 
 def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, id2):
@@ -1660,14 +1660,15 @@ def mp_worker(pair_info):
     print_str = ''  # String to store all the output from one pair tuple
     # Get all information needed by unpacking the pair_info:
     pair_number, pair_tuple, ss_dis_dict, scratch_dir, pdb_folder = pair_info
-    pdbs_tuple = (tuple(pair_tuple[0].split('-')), tuple(pair_tuple[1].split('-')))
     mut_pos_seq = pair_tuple[2][0]
     # Create a tmp folder for this pair and move the PDB files needed:
-    pair_folder = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
-    # If something went wrong, e.g. the file does not exists:
-    if not pair_folder:
-        print('No pair folder, something went wrong', pdbs_tuple)
-        return([False, len(pdbs_tuple[0]) * len(pdbs_tuple[1]), 0])
+    try:
+        pair_folder, pair_tuple = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
+    except:
+        print(create_pair_folder, 'get_interactions')
+        print(e)
+        return(False)
+    pdbs_tuple = (tuple(pair_tuple[0].split('-')), tuple(pair_tuple[1].split('-')))
     os.chdir(pair_folder)
 
     # Loop through the all pairs:
@@ -1809,7 +1810,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
                 print_str, s, c = result
                 completed += c
                 started += s
-                fh.write(result)
+                fh.write(print_str)
 
     pool.close()
     pool.join()
