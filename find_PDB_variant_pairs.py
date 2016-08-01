@@ -824,6 +824,19 @@ def Calpha_from_pair_residue_list(res_list1, res_list2):
     return(Ca_list1, Ca_list2)
 
 
+def missing_Calpha_residue_list(res_list1, res_list2):
+    '''
+    Returns two lists of the carbon shared alpha objects between two biopython PDB object.
+    '''
+    assert(len(res_list1) == len(res_list2))
+    for idx in range(0, len(res_list1)):
+        if 'CA' in res_list1[idx] and 'CA' in res_list2[idx]:
+            pass
+        else:
+            return(True)
+    return(False)
+
+
 def BBatom_from_residue_list(residue_list):
     '''
     Returns a list of the backbone atom objects from a biopython PDB object.
@@ -1085,11 +1098,13 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
     write_reslist_as_pdbfile(res_list1, 'A', dest1)
     write_reslist_as_pdbfile(res_list2, 'A', dest2)
 
-    # Then parse them as pdb objects:
-    s1 = parser.get_structure(single_pair[0], dest1)
-    m1 = s1[0]
-    s2 = parser.get_structure(single_pair[1], dest2)
-    m2 = s2[0]
+    # Silence the error messages:
+    with stdchannel_redirected(sys.stderr, os.devnull):
+        # Then parse them as pdb objects:
+        s1 = parser.get_structure(single_pair[0], dest1)
+        m1 = s1[0]
+        s2 = parser.get_structure(single_pair[1], dest2)
+        m2 = s2[0]
 
     # And run DSSP:
     # Notice that the two returned dictionaries are passed to throwaway variables.
@@ -1098,33 +1113,38 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
     _dssp2 = DSSP(m2, dest2, 'dssp', 'Wilke', 'PDB')
 
     # Extract the list of residue objects:
-    res_list1_dssp = list(list(s1[0].get_chains())[0].get_residues())
-    res_list2_dssp = list(list(s2[0].get_chains())[0].get_residues())
+    # res_list1_dssp = list(list(s1[0].get_chains())[0].get_residues())
+    # res_list2_dssp = list(list(s2[0].get_chains())[0].get_residues())
+    res_list1_dssp = list(m1['A'].get_residues())
+    res_list2_dssp = list(m2['A'].get_residues())
     assert(len(res_list1_dssp) == len(res_list1))
     assert(len(res_list2_dssp) == len(res_list2))
 
     # Add the xtra data from the old residue lists:
     for idx in range(len(res_list1_dssp)):
-        # Store the monomeric DSSP values by another name:
-        # res_list1_dssp[idx].xtra['SS_DSSP_trim'] = res_list1_dssp[idx].xtra['SS_DSSP']  # The real secondary structure annotation comes from the full crystal
-        # res_list2_dssp[idx].xtra['SS_DSSP_trim'] = res_list2_dssp[idx].xtra['SS_DSSP']  # The real secondary structure annotation comes from the full crystal
+        # Store the monomeric DSSP values by another name.
+        # Not all residues are having DSSP information:
         if 'EXP_DSSP_ASA' not in res_list1_dssp[idx].xtra:
-            print('res_list1, idx:', idx)
+            res_list1_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = 'NA'
         else:
             res_list1_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_ASA']
+
         if 'EXP_DSSP_ASA' not in res_list2_dssp[idx].xtra:
-            print('res_list1, idx:', idx)
+            res_list2_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = 'NA'
         else:
             res_list2_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_ASA']
+
         if 'EXP_DSSP_RASA' not in res_list1_dssp[idx].xtra:
-            print('res_list1, idx:', idx)
+            res_list1_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = 'NA'
         else:
             res_list1_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_RASA']
+
         if 'EXP_DSSP_RASA' not in res_list2_dssp[idx].xtra:
-            print('res_list1, idx:', idx)
+            res_list2_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = 'NA'
         else:
             res_list2_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_RASA']
-        # Then update the DSSP values with the full PDB entry values:
+        # Then update the DSSP values with the full PDB entry values.
+        # Notice that the secondary structure key 'SS_DSSP' is taken from the full structure:
         res_list1_dssp[idx].xtra.update(res_list1[idx].xtra)
         res_list2_dssp[idx].xtra.update(res_list2[idx].xtra)
 
@@ -1224,7 +1244,7 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
 
     # Then add the residue specific information.
     # Skip first and last residue since these do not have both phi and psi:
-    for i in range(1, prot_len - 1):
+    for i in range(2, prot_len - 1):
         # Define all the residue specific information:
         _3D_dist = mut_dist[i][0]
         _1D_dist = mut_dist[i][1]
@@ -1247,7 +1267,11 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
         bfactor_back2_res = bfactor_backbone(res_list2[i])
         bfactor_side1_res = bfactor_sidechain(res_list1[i])
         bfactor_side2_res = bfactor_sidechain(res_list2[i])
-        next2cut = res_list1[i].xtra['next2cut']  # Same for both res_list 1 and 2
+        if 'next2cut' in res_list1[i].xtra:
+            # print(res_list1[i].xtra['next2cut'])
+            next2cut = res_list1[i].xtra['next2cut']  # Same for both res_list 1 and 2
+        else:
+            print('no next2cut key')
         idist1_res = res_list1[i].xtra['idist']
         idist2_res = res_list2[i].xtra['idist']
         ires1_res = res_list1[i].xtra['ires']
@@ -1333,50 +1357,57 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair):
     min_frag_len = 20          # Mininum length between termina and cut before terminal fragment is removed
 
     pair_name = pair_name = '-'.join(single_pair)
-    Calpha = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
-    n_res = len(Calpha)
-    cut_offset = 0  # Offset to take into account the truncation of the residue list when cutting the N-terminal off
-    for i in range(2, n_res):
-        i -= cut_offset
-        res_list1[i].xtra['next2cut'] = 0  # Start by assuming no cut
-        res_list2[i].xtra['next2cut'] = 0  # Start by assuming no cut
-        dist_3D = Calpha[i] - Calpha[i - 1]
-        if dist_3D > cut_dist and dist_3D < max_dist:
-            res_list1[i - 1].xtra['next2cut'] = 1  # Indicate a cut
-            res_list1[i].xtra['next2cut'] = 1      # Indicate a cut
-            res_list2[i - 1].xtra['next2cut'] = 1  # Indicate a cut
-            res_list2[i].xtra['next2cut'] = 1      # Indicate a cut
-            print('Missing residue detected between residue', i - 1, 'and', i, 'in pair', pair_name)
-            mut_dist1 = Calpha[i - 1] - Calpha[mut_pos_crystal]
-            mut_dist2 = Calpha[i] - Calpha[mut_pos_crystal]
-            if mut_dist1 < min_dist_from_defect or mut_dist2 < min_dist_from_defect:
-                print('The missing residue is too close to the mutating residue. The pair is discarded:', pair_name)
+    Calpha1 = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
+    Calpha2 = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
+
+    def _cut_bad_crystal_priv(Calpha, res_list1, res_list2):
+        n_res = len(Calpha)
+        cut_offset = 0  # Offset to take into account the truncation of the residue list when cutting the N-terminal off
+        for i in range(2, n_res):
+            i -= cut_offset
+            res_list1[i].xtra['next2cut'] = 0  # Start by assuming no cut
+            res_list2[i].xtra['next2cut'] = 0  # Start by assuming no cut
+            dist_3D = Calpha[i] - Calpha[i - 1]
+            if dist_3D > cut_dist and dist_3D < max_dist:
+                res_list1[i - 1].xtra['next2cut'] = 1  # Indicate a cut
+                res_list1[i].xtra['next2cut'] = 1      # Indicate a cut
+                res_list2[i - 1].xtra['next2cut'] = 1  # Indicate a cut
+                res_list2[i].xtra['next2cut'] = 1      # Indicate a cut
+                print('Missing residue detected between residue', i - 1, 'and', i, 'in pair', pair_name)
+                mut_dist1 = Calpha[i - 1] - Calpha[mut_pos_crystal]
+                mut_dist2 = Calpha[i] - Calpha[mut_pos_crystal]
+                if mut_dist1 < min_dist_from_defect or mut_dist2 < min_dist_from_defect:
+                    print('The missing residue is too close to the mutating residue. The pair is discarded:', pair_name)
+                    return('bad_crystal', 'bad_crystal')
+                # Now check if the break creates a very short fragment, if so delete this fragment:
+                if i < min_frag_len:
+                    # Trim away the small N-terminal fragment:
+                    res_list1 = res_list1[i:]
+                    res_list2 = res_list2[i:]
+                    # Check that the mutation is not inside the discarded fragment:
+                    if mut_pos_crystal < i:
+                        print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
+                        return('bad_crystal', 'bad_crystal')
+                    cut_offset = i  # Add an offset to account for the truncation of the N-terminal
+                elif (n_res - (i - 1)) < min_frag_len:
+                    # Trim away the small C-terminal fragment:
+                    res_list1 = res_list1[0:i]
+                    res_list2 = res_list2[0:i]
+                    # Check that the mutation is not inside the discarded fragment:
+                    if mut_pos_crystal > i:
+                        print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
+                        return('bad_crystal', 'bad_crystal')
+                    break  # No reason to ontinue loop because the remainder C-terminal have been cut away
+            elif dist_3D < min_dist:
+                print('The distance between adjacent C-alpha atoms is suspiciously low (<{:.1f}A). The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(min_dist, pair_name, dist_3D, i - 1, i))
                 return('bad_crystal', 'bad_crystal')
-            # Now check if the break creates a very short fragment, if so delete this fragment:
-            if i < min_frag_len:
-                # Trim away the small N-terminal fragment:
-                res_list1 = res_list1[i:]
-                res_list2 = res_list2[i:]
-                # Check that the mutation is not inside the discarded fragment:
-                if mut_pos_crystal < i:
-                    print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
-                    return('bad_crystal', 'bad_crystal')
-                cut_offset = i  # Add an offset to account for the truncation of the N-terminal
-            elif (n_res - (i - 1)) < min_frag_len:
-                # Trim away the small C-terminal fragment:
-                res_list1 = res_list1[0:i]
-                res_list2 = res_list2[0:i]
-                # Check that the mutation is not inside the discarded fragment:
-                if mut_pos_crystal > i:
-                    print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
-                    return('bad_crystal', 'bad_crystal')
-                break  # No reason to ontinue loop because the remainder C-terminal have been cut away
-        elif dist_3D < min_dist:
-            print('The distance between adjacent C-alpha atoms is suspiciously low (<{:.1f}A). The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(min_dist, pair_name, dist_3D, i - 1, i))
-            return('bad_crystal', 'bad_crystal')
-        elif dist_3D > max_dist:
-            print('The distance between adjacent C-alpha atoms is suspiciously high (>{:.1f}A). This probably means that there is a large +3 residue gap in the crystal structure. The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(max_dist, pair_name, dist_3D, i - 1, i))
-            return('bad_crystal', 'bad_crystal')
+            elif dist_3D > max_dist:
+                print('The distance between adjacent C-alpha atoms is suspiciously high (>{:.1f}A). This probably means that there is a large +3 residue gap in the crystal structure. The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(max_dist, pair_name, dist_3D, i - 1, i))
+                return('bad_crystal', 'bad_crystal')
+        return(res_list1, res_list2)
+
+        res_list1, res_list2 = _cut_bad_crystal_priv(Calpha1, res_list1, res_list2)
+        res_list1, res_list2 = _cut_bad_crystal_priv(Calpha2, res_list1, res_list2)
 
     return(res_list1, res_list2)
 
@@ -1656,13 +1687,17 @@ def mp_worker(pair_info):
                 pdb_obj2 = parser.get_structure(single_pair[1], single_pair[1][0:-1])
                 # Add DSSP information on the full PDB file:
                 pdb_obj1, pdb_obj2 = add_dssp_to_pdb_obj(pair_folder, single_pair, pdb_obj1, pdb_obj2)
-                # Extract the list of residue objects:
-                id1 = pdb_obj1.get_id()
-                id2 = pdb_obj2.get_id()
-                chain1 = id1[-1]
-                chain2 = id2[-1]
-                res_list1 = list(pdb_obj1[0][chain1].get_residues())
-                res_list2 = list(pdb_obj2[0][chain2].get_residues())
+            # Extract the list of residue objects:
+            id1 = pdb_obj1.get_id()
+            id2 = pdb_obj2.get_id()
+            chain1 = id1[-1]
+            chain2 = id2[-1]
+            res_list1 = list(pdb_obj1[0][chain1].get_residues())
+            res_list2 = list(pdb_obj2[0][chain2].get_residues())
+
+            if missing_Calpha_residue_list(res_list1, res_list2):
+                print('A C-alpha was missing in a residue. The pair is skipped:', single_pair)
+                continue
 
             # Start getting possible protein-protein interactions
             # on the untouched pdb object and residue list:
@@ -1694,7 +1729,9 @@ def mp_worker(pair_info):
 
             # Now add DSSP information to the pruned residue list:
             try:
-                res_list1, res_list2 = add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser)
+                # Silence the error messages:
+                with stdchannel_redirected(sys.stderr, os.devnull):
+                    res_list1, res_list2 = add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser)
             except Exception as e:
                 print(single_pair, 'add_dssp_to_reslist')
                 print(e)
@@ -1754,6 +1791,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     with open(result_file, 'a') as fh:
         for result in pool.imap_unordered(mp_worker, pair_info_list):
             if result:
+                print('Got results')
                 fh.write(result)
     pool.close()
     pool.join()
