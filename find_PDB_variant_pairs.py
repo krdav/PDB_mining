@@ -1321,7 +1321,9 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair):
     pair_name = pair_name = '-'.join(single_pair)
     Calpha = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
     n_res = len(Calpha)
+    cut_offset = 0  # Offset to take into account the truncation of the residue list when cutting the N-terminal off
     for i in range(2, n_res):
+        i -= cut_offset
         res_list1[i].xtra['next2cut'] = 0  # Start by assuming no cut
         res_list2[i].xtra['next2cut'] = 0  # Start by assuming no cut
         dist_3D = Calpha[i] - Calpha[i - 1]
@@ -1345,6 +1347,7 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair):
                 if mut_pos_crystal < i:
                     print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
                     return('bad_crystal', 'bad_crystal')
+                cut_offset = i  # Add an offset to account for the truncation of the N-terminal
             elif (n_res - (i - 1)) < min_frag_len:
                 # Trim away the small C-terminal fragment:
                 res_list1 = res_list1[0:i]
@@ -1353,6 +1356,7 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair):
                 if mut_pos_crystal > i:
                     print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
                     return('bad_crystal', 'bad_crystal')
+                break  # No reason to ontinue loop because the remainder C-terminal have been cut away
         elif dist_3D < min_dist:
             print('The distance between adjacent C-alpha atoms is suspiciously low (<{:.1f}A). The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(min_dist, pair_name, dist_3D, i - 1, i))
             return('bad_crystal', 'bad_crystal')
