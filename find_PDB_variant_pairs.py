@@ -101,6 +101,9 @@ args = parser.parse_args()
 args.pdb_folder = args.pdb_folder.rstrip('/')
 args.scratch_dir = args.scratch_dir.rstrip('/')
 
+run_dir = os.getcwd()
+if '/' not in args.result_file:
+    args.result_file = run_dir + args.result_file
 
 # Global variables:
 residue_type_3to1_map = {
