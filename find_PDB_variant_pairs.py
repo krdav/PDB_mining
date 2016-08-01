@@ -696,10 +696,14 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                     # If residue in blacklist skip the pair:
                     elif line[0:6] == 'HETATM' and line[21] == chain_id and line[17:20] in blacklist:
                         print('Residue found in blacklist', pdb_file)
+                        # Clean-up:
+                        shutil.rmtree(pair_folder)
                         return(False)
         except Exception as e:
             print(e)
             print(pdb_path, 'probably missing')
+            # Clean-up:
+            shutil.rmtree(pair_folder)
             return(False)
 
         fh_out.close()
@@ -1663,12 +1667,15 @@ def mp_worker(pair_info):
     # If something went wrong, e.g. the file does not exists:
     if not pair_folder:
         print('No pair folder, something went wrong', pdbs_tuple)
-        return()
+        return([False, len(pdbs_tuple[0]) * len(pdbs_tuple[1]), 0])
     os.chdir(pair_folder)
 
     # Loop through the all pairs:
+    completed = 0
+    started = 0
     for i in range(len(pdbs_tuple[0])):
         for j in range(len(pdbs_tuple[1])):
+            started += 1
             # Define the single pair to look at:
             single_pair = (pdbs_tuple[0][i], pdbs_tuple[1][j])
             # PDBParser is part of Bio.PDB:
@@ -1760,6 +1767,7 @@ def mp_worker(pair_info):
                     result = print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos_crystal)
                     if result:
                         print_str += result
+                        completed += 1
                 else:
                     print('Pair deleted because it was too short just before printing:', single_pair)
             except Exception as e:
@@ -1769,7 +1777,7 @@ def mp_worker(pair_info):
 
     # Clean-up:
     shutil.rmtree(pair_folder)
-    return(print_str)
+    return([print_str, started, completed])
 
 
 def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
@@ -1789,10 +1797,20 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     print_header(result_file)
     # Continue printing the results from each process in the pool:
     with open(result_file, 'a') as fh:
+        completed = 0
+        started = 0
+        count = 0
         for result in pool.imap_unordered(mp_worker, pair_info_list):
+            # Print stats:
+            count += 1
+            if count % 10 == 0:
+                print('Currently there have been {} pairs run and {} with success.'.format(started, completed))
             if result:
-                print('Got results')
+                print_str, s, c = result
+                completed += c
+                started += s
                 fh.write(result)
+
     pool.close()
     pool.join()
 
