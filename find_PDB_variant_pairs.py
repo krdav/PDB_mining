@@ -439,8 +439,6 @@ def seq_liglen_bin(min_seq_len, QC_PDB_dict, ss_dis_dict, biolip_dict, cache_dir
     return(seq_liglen_dict)
 
 
-##################################################################################################################################
-##### Comment from here:
 def find_chain_pairs(pair_dist, seq_len_dict, cache_dir):
     '''
     Calculate the hamming distance between sequences of the same length.
@@ -468,7 +466,7 @@ def find_chain_pairs(pair_dist, seq_len_dict, cache_dir):
         distance_distribution = pickle.load(open(pair_dist_name, "rb"))
         return(pairs, distance_distribution)
 
-    pairs = list()
+    pairs = list()  # List of tuples with the pairs and mutation positions
     distance_distribution = dict()  # Only for debugging and/or interesting stats
     # Pairwise seqeunce alignment to find the single substitution chain pairs:
     for len_key, len_dict in sorted(seq_len_dict.items(), key=lambda x: x[0], reverse=False):
@@ -483,8 +481,7 @@ def find_chain_pairs(pair_dist, seq_len_dict, cache_dir):
             # Make the comparison:
             for PDB_ID_com in com_list:
                 seq2 = seq_len_dict[len_key][PDB_ID_com]
-                # Use the distance library to calculate hamming distance fast (deprecated, now using mutation_positions_noX):
-                # ham_dist = distance.hamming(seq1, seq2)
+                # Calculate the hamming distance and mismatch positions, disregarding X's as mismatches:
                 pos_list = mutation_positions_noX(seq1, seq2)
                 ham_dist = len(pos_list)
                 # Add this information to the distribution of distances:
@@ -492,10 +489,8 @@ def find_chain_pairs(pair_dist, seq_len_dict, cache_dir):
                     distance_distribution[ham_dist] += 1
                 else:
                     distance_distribution[ham_dist] = 1
-                # If this is the requested distance then find the positions of deviation
-                # and add the pair to the list:
+                # If this is the requested distance add the pair to the list:
                 if ham_dist == pair_dist:
-                    # pos_list = mutation_positions_noX(seq1, seq2)
                     pairs.append((PDB_ID, PDB_ID_com, pos_list))
 
     # Lastly the results dictionary are dumped with Pickle:
@@ -530,7 +525,7 @@ def find_chain_pairs2(pair_dist, seq_liglen_dict, cache_dir):
         distance_distribution = pickle.load(open(pair_dist_name, "rb"))
         return(pairs, distance_distribution)
 
-    pairs = list()
+    pairs = list()  # List of tuples with the pairs and mutation positions
     distance_distribution = dict()  # Only for debugging and/or interesting stats
     for lig_key, seq_len_dict in seq_liglen_dict.items():
         # Pairwise seqeunce alignment to find the single substitution chain pairs:
@@ -548,15 +543,13 @@ def find_chain_pairs2(pair_dist, seq_liglen_dict, cache_dir):
                     seq2 = seq_len_dict[len_key][PDB_ID_com]
                     pos_list = mutation_positions_noX(seq1, seq2)
                     ham_dist = len(pos_list)
-                    # Add this information to the distribution of distances:
+                    # Calculate the hamming distance and mismatch positions, disregarding X's as mismatches:
                     if ham_dist in distance_distribution:
                         distance_distribution[ham_dist] += 1
                     else:
                         distance_distribution[ham_dist] = 1
-                    # If this is the requested distance then find the positions of deviation
-                    # and add the pair to the list:
+                    # If this is the requested distance add the pair to the list:
                     if ham_dist == pair_dist:
-                        # pos_list = mutation_positions_noX(seq1, seq2)
                         pairs.append((PDB_ID, PDB_ID_com, pos_list))
 
     # Lastly the results dictionary are dumped with Pickle:
@@ -581,6 +574,7 @@ def dedup_ss_dis(ss_dis_dict):
     return(seq2chains)
 
 
+# To be deleted:
 def dedup_seq_liglen_dict(seq_liglen_dict):
     '''
     Currently deprecated since this function is moved into the seq_liglen_bin function.
@@ -603,6 +597,7 @@ def dedup_seq_liglen_dict(seq_liglen_dict):
     return(seq_liglen_dict)
 
 
+# To be deleted:
 def dedup_seq_len_dict(seq_len_dict):
     '''
     Currently deprecated since this function is moved into the seq_liglen_bin function.
@@ -649,37 +644,40 @@ def mutation_positions_noX(seq1, seq2):
     and therefore X residues are considered wildcards.
     '''
     assert(len(seq1) == len(seq2))
-    pos_list = list()
-    for pos in range(0, len(seq1)):
-        if seq1[pos] == 'X' or seq2[pos] == 'X':
-            pass
-        elif seq1[pos] != seq2[pos]:
-            pos_list.append(pos)
-        else:
-            pass
+    # Converted to a more simple list comprehension:
+    pos_list = [pos for pos in range(0, len(seq1)) if seq1[pos] != seq2[pos]]
+
+# To be deleted:
+#    pos_list = list()
+#    for pos in range(0, len(seq1)):
+#        if seq1[pos] == 'X' or seq2[pos] == 'X':
+#            pass
+#        elif seq1[pos] != seq2[pos]:
+#            pos_list.append(pos)
+#        else:
+#            pass
     return(pos_list)
 
 
-# This function will create a folder and move the necessary files
-# so that all calculations for a single pair can be done indepedently.
-# This should be usefull to parallelize the jobs and get them run fast.
 def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
     '''
     Creates a folder for each pair and moves the necessary files
-    to do all calculations in that local folder.
+    to do all calculations in that local folder and hence enable parallelization.
     '''
     # Name the folder according to the pair number:
     pair_folder = '{}/{:06d}'.format(scratch_dir, pair_number)
+    # Remove existing folder if any:
     if os.path.exists(pair_folder):
         shutil.rmtree(pair_folder)
     os.makedirs(pair_folder)
+
     # Make a list of all the PDBs in the pair tuple:
     pdbs = pair[0].split('-') + pair[1].split('-')
     # Then loop through all these PDBs and move them to the folder:
     for pdb_file in pdbs:
         chain_id = pdb_file[-1]
-        pdb_file = pdb_file[0:-1]  # Cut away the chain ID
-        folder_key = pdb_file[1:3]
+        pdb_file = pdb_file[0:-1]   # Cut away the chain ID
+        folder_key = pdb_file[1:3]  # Notice this is PDB convention and for custom files this should be a adapted
         pdb_path = '{}/{}/pdb{}.ent.gz'.format(pdb_folder, folder_key, pdb_file)
         fh_out = open('{}/{}'.format(pair_folder, pdb_file), 'w')
         # Notice this is opened directly as gzipped and therefore comes in binary:
@@ -689,15 +687,13 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                 for line in lines:
                     # Decode from binary to unicode:
                     line = str(line, 'utf-8')
-                    # Then only keep 'ATOM' cards from the chain of interest
-                    # or HETATM of the selenomethionine type (MSE):
-                    # if (line[0:6] == 'ATOM  ' and line[21] == chain_id) or (line[0:6] == 'HETATM' and line[17:20] in whitelist and line[21] == chain_id):
+                    # Then only keep 'ATOM' cards or HETATM on the whitelist:
                     if line[0:6] == 'ATOM  ' or (line[0:6] == 'HETATM' and line[17:20] in whitelist):
                         print(line, file=fh_out, end='')
+                    # If residue in blacklist skip the pair:
                     elif line[0:6] == 'HETATM' and line[21] == chain_id and line[17:20] in blacklist:
                         print('Residue found in blacklist', pdb_file)
                         return(False)
-
         except Exception as e:
             print(e)
             print(pdb_path, 'probably missing')
@@ -709,7 +705,8 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
 
 def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, id2):
     '''Correct missing residues in two pdb objects simultaneously by trimming the sequence in both
-    if a residue is missing. Return the two correted lists of residues and an updated mutation position.
+    if a residue is missing. Return the two correted lists of residues
+    and an updated mutation position relative to the residue lists.
     '''
     # Get the primary sequence of each pdb object as it is given by the ss_dis dictionary:
     seq1 = ss_dis_dict[id1]['sequence']
@@ -724,7 +721,7 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     assert(len(dis1) == len(dis2))
     assert(len(dis1) == len(seq1))
 
-    # Assert on oddities in the disorder string and/or crystal structure:
+    # Assert any oddities in the disorder string and/or crystal structure:
     res_count1 = dis1.count('-')
     res_count2 = dis2.count('-')
     X1_count = seq1.count('X')
@@ -732,6 +729,7 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     assert((len(res_list1) + X1_count) == res_count1)
     assert((len(res_list2) + X2_count) == res_count2)
 
+# To delete:
 ##### Remove this out-commented part if things are running as usual:
     # Now trim the two residue obejcts:
 #    res_idx = 0
@@ -758,7 +756,8 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     # Now trim the two residue obejcts:
     res_idx = 0
     for i in range(0, len(dis1)):
-        if dis1[i] == 'X' and dis2[i] == 'X':    # Both are missing
+        # Both are missing
+        if dis1[i] == 'X' and dis2[i] == 'X':
             continue
             res_idx -= 1
         # Missing residue in structure 1, but found in structure 2:
@@ -775,17 +774,16 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     # Get the trimmed sequence as a string:
     res_seq_list1 = [residue_type_3to1_map[res_obj.get_resname()] for res_obj in res_list1]
     res_list_seq1 = ''.join(res_seq_list1)
-
+    # Then join to a string:
     res_seq_list2 = [residue_type_3to1_map[res_obj.get_resname()] for res_obj in res_list2]
     res_list_seq2 = ''.join(res_seq_list2)
 
-    # Then check that the mutation is still there and not trimmed away:
+    # Check that the mutation is still there and not trimmed away:
     try:
         mut_list_crystal = mutation_positions_noX(res_list_seq1, res_list_seq2)
     except:
-        print('Fail under mutation_positions_noX')
-    if len(mut_list_crystal) == 0:
-        return('no_mut', 'no_mut', 'no_mut')
+        if len(mut_list_crystal) == 0:
+            return('no_mut', 'no_mut', 'no_mut')
 
     # Use the amino acid identity on the mutation position as and anchor point,
     # to check whether everything went as it should in the trimming:
@@ -800,7 +798,7 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
 
 def Calpha_from_residue_list(residue_list):
     '''
-    Returns a list of the carbon alpha objects from a Biopython PDB object.
+    Returns a list of the carbon alpha objects from a biopython PDB object.
     '''
     Ca_list = list()
     for residue in residue_list:
@@ -811,7 +809,7 @@ def Calpha_from_residue_list(residue_list):
 
 def Calpha_from_pair_residue_list(res_list1, res_list2):
     '''
-    Returns two lists of the carbon shared alpha objects between two Biopython PDB object.
+    Returns two lists of the carbon shared alpha objects between two biopython PDB object.
     '''
     assert(len(res_list1) == len(res_list2))
     Ca_list1 = list()
@@ -825,7 +823,7 @@ def Calpha_from_pair_residue_list(res_list1, res_list2):
 
 def BBatom_from_residue_list(residue_list):
     '''
-    Returns a list of the backbone atom objects from a Biopython PDB object.
+    Returns a list of the backbone atom objects from a biopython PDB object.
     '''
     Ba_list = list()
     for residue in residue_list:
@@ -864,9 +862,9 @@ def BBatom_from_pair_residue_list(res_list1, res_list2):
 
 def rot_residue_list(residue_list, rotran):
     '''
-    Rotate all the atoms of a given PDB structure loaded into a Biopython PDB obejct.
+    Rotate all the atoms of a given PDB structure loaded into a biopython PDB obejct.
     '''
-    # Here take the "rotran" rotational matrix from the superposition protocol:
+    # Here the "rotran" is a rotational matrix from the superposition protocol:
     rot, tran = rotran
     rot = rot.astype('f')
     tran = tran.astype('f')
@@ -888,6 +886,7 @@ def calc_phi(residue_list, residue_numb):
         phi_torsion = calc_dihedral(vector1, vector2, vector3, vector4)
         return(phi_torsion)
     else:
+        # If any missing bacbone atoms skip this residue:
         return('NA')
 
 
@@ -904,6 +903,7 @@ def calc_psi(residue_list, residue_numb):
         psi_torsion = calc_dihedral(vector1, vector2, vector3, vector4)
         return(psi_torsion)
     else:
+        # If any missing bacbone atoms skip this residue:
         return('NA')
 
 
@@ -921,6 +921,7 @@ def calc_model_torsions(residue_list):
             torsion_list.append((phi, psi))
         else:  # For first and last residue just append "blank" values
             torsion_list.append(('NA', 'NA'))
+# To be deleted:
 # So far just skip the terminal residues:
 #        elif residue_idx == 0:
 #            psi = calc_psi(chain_obj, residue_idx)
@@ -932,7 +933,7 @@ def calc_model_torsions(residue_list):
 
 def calc_diff_torsions(torsion1, torsion2):
     '''
-    Calculate the difference in torsion angles
+    Calculate the difference in two lists of torsion angles
     as returned from the "calc_model_torsions" function.
     '''
     assert(len(torsion1) == len(torsion2))
@@ -947,7 +948,7 @@ def calc_diff_torsions(torsion1, torsion2):
             torsion_diff.append(('NA', 'NA'))
             continue
 
-        # Radial distance between phi1 and phi2:
+        # Calculate the radial distance between phi1 and phi2:
         if phi1 < 0 and phi2 > 0:
             phi1 = math.pi + -1 * phi1
         elif phi1 > 0 and phi2 < 0:
@@ -957,7 +958,7 @@ def calc_diff_torsions(torsion1, torsion2):
         if d_phi > 180:
             d_phi = 360 - d_phi
 
-        # Radial distance between psi1 and psi2:
+        # Calculate the radial distance between psi1 and psi2:
         if psi1 < 0 and psi2 > 0:
             psi1 = math.pi + -1 * psi1
         elif psi1 > 0 and psi2 < 0:
@@ -973,7 +974,7 @@ def calc_diff_torsions(torsion1, torsion2):
 
 def align_and_find_torsions(res_list1, res_list2):
     '''
-    Superimpose two Biopython PDB objects and then calculate the difference in torsions for each residue.
+    Superimpose two biopython PDB objects and then calculate the difference in torsions for each residue.
     '''
     # Superimposer is part of Bio.PDB:
     sup = Superimposer()
@@ -1011,7 +1012,8 @@ def dist_from_mut(res_list, mut_pos):
 
 def create_atom_line(atom, hetfield, segid, atom_number, resname, resseq, icode, chain_id, charge="  "):
     '''
-    Create the ATOM line in a PDB file from its pdb object information.
+    Create the ATOM line in a PDB file from the atom object and its parent pdb object information.
+    This function is taken directly from the biopython source code and slightly modified.
     '''
     from Bio.Data.IUPACData import atom_weights  # Allowed Elements
     _ATOM_FORMAT_STRING = "%s%5i %-4s%c%3s %c%4i%c   %8.3f%8.3f%8.3f%s%6.2f      %4s%2s%2s\n"
@@ -1065,7 +1067,7 @@ def write_reslist_as_pdbfile(res_list, chain_id, outname):
                 s = create_atom_line(atom, hetfield, segid, atom_number, resname,
                                      resseq, icode, chain_id)
                 fh.write(s)
-                atom_number = atom_number + 1
+                atom_number += 1
 
 
 def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
@@ -1099,8 +1101,8 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
     # Add the xtra data from the old residue lists:
     for idx in range(len(res_list1_dssp)):
         # Store the monomeric DSSP values by another name:
-        # res_list1_dssp[idx].xtra['SS_DSSP_trim'] = res_list1_dssp[idx].xtra['SS_DSSP']  # The real annotation comes from the full crystal
-        # res_list2_dssp[idx].xtra['SS_DSSP_trim'] = res_list2_dssp[idx].xtra['SS_DSSP']
+        # res_list1_dssp[idx].xtra['SS_DSSP_trim'] = res_list1_dssp[idx].xtra['SS_DSSP']  # The real secondary structure annotation comes from the full crystal
+        # res_list2_dssp[idx].xtra['SS_DSSP_trim'] = res_list2_dssp[idx].xtra['SS_DSSP']  # The real secondary structure annotation comes from the full crystal
         res_list1_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_ASA']
         res_list2_dssp[idx].xtra['EXP_DSSP_ASA_trim'] = res_list2_dssp[idx].xtra['EXP_DSSP_ASA']
         res_list1_dssp[idx].xtra['EXP_DSSP_RASA_trim'] = res_list1_dssp[idx].xtra['EXP_DSSP_RASA']
@@ -1114,9 +1116,8 @@ def add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser):
 
 def add_dssp_to_pdb_obj(pair_folder, single_pair, pdb_obj1, pdb_obj2):
     '''
-    Run DSSP on a list of residue objects by first dumping them as ATOM cards to a PDB file
-    and then running DSSP as a subprocess.
-    Finally add this DSSP information to each residue object and return the updated residue lists.
+    Run DSSP on a pdb objects created from a PDB file.
+    Add this DSSP information to each residue object and return the updated pdb object.
     '''
     # Get filename to run DSSP on:
     dest1 = pair_folder + '/' + single_pair[0][0:-1]
@@ -1204,6 +1205,7 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
     iatom_wt = res_list1[mut_pos_crystal].xtra['iatom']
     iatom_mut = res_list2[mut_pos_crystal].xtra['iatom']
 
+    # Then add the residue specific information.
     # Skip first and last residue since these do not have both phi and psi:
     for i in range(1, prot_len - 1):
         # Define all the residue specific information:
@@ -1228,10 +1230,7 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
         bfactor_back2_res = bfactor_backbone(res_list2[i])
         bfactor_side1_res = bfactor_sidechain(res_list1[i])
         bfactor_side2_res = bfactor_sidechain(res_list2[i])
-        if 'next2cut' in res_list1[i]:
-            next2cut = 1
-        else:
-            next2cut = 0
+        next2cut = res_list1[i].xtra['next2cut']  # Same for both res_list 1 and 2
         idist1_res = res_list1[i].xtra['idist']
         idist2_res = res_list2[i].xtra['idist']
         ires1_res = res_list1[i].xtra['ires']
@@ -1241,7 +1240,7 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
         iatom1_res = res_list1[i].xtra['iatom']
         iatom2_res = res_list2[i].xtra['iatom']
 
-        # Gather all information and print it as a list:
+        # Gather all information and add it to the return string:
         print_list = [pair_name,
                       prot_len,
                       AA_wt,
@@ -1296,8 +1295,8 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
                       iatom_self2_res,
                       iatom1_res,
                       iatom2_res]
-        # print(*print_list, sep='\t', end='\n', file=fh_out)
         print_list = [str(el) for el in print_list]
+        # print(*print_list, sep='\t', end='\n', file=fh_out)
         print_str += '\t'.join(print_list) + '\n'
     return(print_str)
 
@@ -1311,23 +1310,27 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair):
     '''
     # Define the distance cutoffs:
     max_dist = 12   # Equivalent to 3 stretched out residues (max 3 residue gaps allowed not considering proline)
-    cut_dist = 4
+    cut_dist = 4    # This distance indicates a cut in the sequence (missing residue in the crystal structure)
     min_dist = 2.5  # Most will not go below 3.5, but Proline probably will and therefore as low as 2.5 is allowed
-    max_dist_from_defect = 10
-    min_frag_len = 20
+    min_dist_from_defect = 10  # Minimun allow distance distance to a crystal defect
+    min_frag_len = 20          # Mininum length between termina and cut before terminal fragment is removed
 
     pair_name = pair_name = '-'.join(single_pair)
-    Calpha = Calpha_from_residue_list(res_list1)
+    Calpha = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
     n_res = len(Calpha)
     for i in range(2, n_res):
+        res_list1[i].xtra['next2cut'] = 0  # Start by assuming no cut
+        res_list2[i].xtra['next2cut'] = 0  # Start by assuming no cut
         dist_3D = Calpha[i] - Calpha[i - 1]
         if dist_3D > cut_dist and dist_3D < max_dist:
-            res_list1[i - 1].xtra['next2cut'] = 1
-            res_list2[i].xtra['next2cut'] = 1
+            res_list1[i - 1].xtra['next2cut'] = 1  # Indicate a cut
+            res_list1[i].xtra['next2cut'] = 1      # Indicate a cut
+            res_list2[i - 1].xtra['next2cut'] = 1  # Indicate a cut
+            res_list2[i].xtra['next2cut'] = 1      # Indicate a cut
             print('Missing residue detected between residue', i - 1, 'and', i, 'in pair', pair_name)
             mut_dist1 = Calpha[i - 1] - Calpha[mut_pos_crystal]
             mut_dist2 = Calpha[i] - Calpha[mut_pos_crystal]
-            if mut_dist1 < max_dist_from_defect or mut_dist2 < max_dist_from_defect:
+            if mut_dist1 < min_dist_from_defect or mut_dist2 < min_dist_from_defect:
                 print('The missing residue is too close to the mutating residue. The pair is discarded:', pair_name)
                 return('bad_crystal', 'bad_crystal')
             # Now check if the break creates a very short fragment, if so delete this fragment:
@@ -1353,12 +1356,15 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair):
         elif dist_3D > max_dist:
             print('The distance between adjacent C-alpha atoms is suspiciously high (>{:.1f}A). This probably means that there is a large +3 residue gap in the crystal structure. The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(max_dist, pair_name, dist_3D, i - 1, i))
             return('bad_crystal', 'bad_crystal')
+
     return(res_list1, res_list2)
 
 
+# To delete:
 def dist_between_Calpha(res_list):
     '''
     Find the distance between C-alpha and return it as a list.
+    This function is unused and deprecated.
     '''
     # Add linear (sequence based) distance
     dist_list = list()
@@ -1371,21 +1377,23 @@ def dist_between_Calpha(res_list):
 
 def remove_homodimers_in_pairs(pairs):
     '''
-    GGGGGGGGG
+    Takes the list of pair tuples and removed mulitple chains from the same PDB file.
     '''
-    new_pairs = list()
+    new_pairs = list()  # New list to the pair tuples with max on PDB entry
     for pair in pairs:
-        p1l = pair[0].split('-')
-        p2l = pair[1].split('-')
-        p1s = pair[0]
-        p2s = pair[1]
+        p1l = pair[0].split('-')  # Split to a list of chains
+        p2l = pair[1].split('-')  # Split to a list of chains
+        p1s = pair[0]  # For search also keep the string of chains
+        p2s = pair[1]  # For search also keep the string of chains
 
+        # First step remove those homo dimeric chains with the same sequence
+        # appearing only in one of the pair partners.
         # Remove duplicate PDB entries in pair partner 1:
         p1d = {pp[0:-1]: pp[-1] for pp in p1l}
         # Remove duplicate PDB entries in pair partner 2:
         p2d = {pp[0:-1]: pp[-1] for pp in p2l}
 
-        # Use list mutation for instead of assigning a new list:
+        # Use list mutation instead of assigning a new list:
         p1l[:] = [p + c for p, c in p1d.items()]
         p2l[:] = [p + c for p, c in p2d.items()]
 
@@ -1394,9 +1402,12 @@ def remove_homodimers_in_pairs(pairs):
         p1l_iter = p1l[:]  # Copy for iterations
         for p1 in p1l_iter:
             if p1[0:-1] in p1s and p1[0:-1] in p2s:
+                # Delete from the longest pair partner list:
                 if len(p1l) > len(p2l):
-                    p1l.remove(p1)
+                    p1l.remove(p1)  # Because p1 is used for iteration this can be found easily
                 else:
+                    # Notice here that it is a little more difficult to find the pair partner
+                    # do delete because the chain name is different:
                     p2l = [p2 for p2 in p2l if p1[0:-1] != p2[0:-1]]
 
         # Check that we still have a pair, if yes then update it:
@@ -1438,16 +1449,19 @@ def pair_stat(pairs):
         if len(p2l) > 1:
             numb_rep += len(p2l) - 1
 
-    print(high)
-    print(high_comp)
-    print(total_chains)
-    print(total_comp)
-    print(numb_rep)
+    print('Highest number of pair partners i.e. same sequence chains from different PDB files with a mutant partner:', high)
+    print('Highest number of pairwise comparisons necessary for a given pair in the pair list:', high_comp)
+    print('Total number of chains summed over all the pairs:', total_chains)
+    print('Total number of comparisons between chains necessary for all pairs:', total_comp)
+    print('Number of replicate pair partners i.e. chains that can be used for determining a background difference:', numb_rep)
 
 
 def get_interactions(res_list, pdb_obj, sele_chain):
     '''
-    GGGGGGGGG
+    Look for possible protein-protein interactions between any residue in a res_list
+    and other residues on other chains, but in the same PDB file as the input res_list originates from.
+    Interactions are only found based on distance cutoff no chemical interactions
+    are taken into consideration when searching.
     '''
     # res.xtra['ichain_numb'] = int
     # res.xtra['idist'] = float / NA
@@ -1465,7 +1479,7 @@ def get_interactions(res_list, pdb_obj, sele_chain):
 
         dist_cut = 20  # Interactions cannot be further away than 20A backbone atom to backbone atom
         # R -> E = 7.1A + 4.9A = 12A + bond max 15A to give a bit of freedom go to 20A
-        min_idist = 999  # Set this high to pick up any idist as the min_idist
+        min_idist = 999  # Set this high to pick up first idist as the min_idist
         for res in res_list:
             # Find a backbone atom that can be used to find the distance.
             # CA is prefered:
@@ -1501,7 +1515,8 @@ def get_interactions(res_list, pdb_obj, sele_chain):
                 else:
                     continue
 
-    # Add the number of different chains observed in the crystal lastly:
+    # Add the number of different chains observed in the crystal lastly
+    # and fill out missing fields:
     for res in res_list:
         res.xtra['ichain_numb'] = n_chains
         # Fill out the xtra fields that have not been assigned anything with NA.
@@ -1585,15 +1600,22 @@ def print_header(result_file):
 
 def mp_worker(pair_info):
     '''
-    GGGGGGGG
+    Worker function that wraps all the steps in creating the outputted result.
+    The function returns the total output of a pair tuple as a string.
+    The worker can be called by a handler and work in parallel on multiple pairs
+    on multiple cores.
+    NOTICE that if a pair tuple contains many pair partners and the number
+    of pairwise comparisons are high, then this can be a significant memory
+    problem.
     '''
-    print_str = ''
-
+    print_str = ''  # String to store all the output from one pair tuple
+    # Get all information needed by unpacking the pair_info:
     pair_number, pair_tuple, ss_dis_dict, scratch_dir, pdb_folder = pair_info
     pdbs_tuple = (tuple(pair_tuple[0].split('-')), tuple(pair_tuple[1].split('-')))
     mut_pos_seq = pair_tuple[2][0]
-
+    # Create a tmp folder for this pair and move the PDB files needed:
     pair_folder = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
+    os.chdir(pair_folder)
     # If something went wrong, e.g. the file does not exists:
     if not pair_folder:
         print('No pair folder, something went wrong', pdbs_tuple)
@@ -1602,13 +1624,10 @@ def mp_worker(pair_info):
     # Loop through the all pairs:
     for i in range(len(pdbs_tuple[0])):
         for j in range(len(pdbs_tuple[1])):
-
+            # Define the single pair to look at:
             single_pair = (pdbs_tuple[0][i], pdbs_tuple[1][j])
-
-            # print(single_pair)
             # PDBParser is part of Bio.PDB:
             parser = PDBParser()
-            os.chdir(pair_folder)
             # Silence the error messages:
             with stdchannel_redirected(sys.stderr, os.devnull):
                 # Parse the pdbs into BioPDB objects:
@@ -1621,10 +1640,11 @@ def mp_worker(pair_info):
                 id2 = pdb_obj2.get_id()
                 chain1 = id1[-1]
                 chain2 = id2[-1]
-
                 res_list1 = list(pdb_obj1[0][chain1].get_residues())
                 res_list2 = list(pdb_obj2[0][chain2].get_residues())
 
+            # Start getting possible protein-protein interactions
+            # on the untouched pdb object and residue list:
             try:
                 res_list1 = get_interactions(res_list1, pdb_obj1, chain1)
                 res_list2 = get_interactions(res_list2, pdb_obj2, chain2)
@@ -1633,8 +1653,8 @@ def mp_worker(pair_info):
                 print(e)
                 continue
 
+            # Correct for missing residues:
             try:
-                # ss_dis_dict
                 res_list1, res_list2, mut_pos_crystal = correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, id2)
                 # If the mutation was in the missing residues:
                 if 'no_mut' in [res_list1, res_list2, mut_pos_crystal]:
@@ -1645,34 +1665,39 @@ def mp_worker(pair_info):
                 print(e)
                 continue
 
+            # Cut out the crystal defects:
             res_list1, res_list2 = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair)
             if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
                 print('Bad crystal', single_pair, mut_pos_seq)
                 continue
 
+            # Now add DSSP information to the pruned residue list:
             try:
                 res_list1, res_list2 = add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser)
             except Exception as e:
-                print(e)
                 print(single_pair, 'run_dssp')
+                print(e)
                 continue
 
+            # Find difference in torsions between the pair chains:
             try:
                 torsion_diff = align_and_find_torsions(res_list1, res_list2)
             except Exception as e:
-                print(e)
                 print(single_pair, 'align_and_find_torsions')
+                print(e)
                 continue
 
+            # Generate information about the distance to the variant:
             try:
                 mut_dist = dist_from_mut(res_list1, mut_pos_crystal)
             except Exception as e:
-                print(e)
                 print(single_pair, 'dist_from_mut')
+                print(e)
                 continue
 
+            # Add all the results up and concatenate them with the previous results:
             try:
-                # Before printing anything check if the res_list is still long enough:
+                # Before adding anything check if the res_list is still long enough:
                 if len(res_list1) > 60 or len(res_list2) > 60:
                     result = print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos_crystal)
                     if result:
@@ -1680,8 +1705,8 @@ def mp_worker(pair_info):
                 else:
                     print('Pair deleted because it was too short just before printing:', single_pair)
             except Exception as e:
-                print(e)
                 print(single_pair, 'print_res')
+                print(e)
                 continue
 
     # Clean-up:
@@ -1691,20 +1716,22 @@ def mp_worker(pair_info):
 
 def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     '''
-    GGGGGGGGG
+    Multi process handler. Start a pool of processes and queues them
+    on a number of cores. Runs the mp_worker and prints the output sequentially.
     '''
+    # Generate a list of info that is needed for each pair
+    # to run indepedently by the worker process:
     pair_info_list = list()
     for pair_number, pair_tuple in enumerate(pairs):
         pair_info_list.append([pair_number, pair_tuple, ss_dis_dict, scratch_dir, pdb_folder])
 
+    # Start the pool with X cores:
     pool = multiprocessing.Pool(np)
-
     # Print output header:
     print_header(result_file)
     # Continue printing the results from each process in the pool:
     with open(result_file, 'a') as fh:
         for result in pool.imap(mp_worker, pair_info_list):
-            # (filename, count) tuples from worker
             if result:
                 fh.write(result)
     pool.close()
@@ -1745,4 +1772,5 @@ if __name__ == "__main__":
     pairs1, distance_distribution = find_chain_pairs2(pair_distance, seq_liglen_dict, args.cache_dir)
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
+    # Do all the calculation in a parallel pool and print the results:
     mp_handler(pairs1, args.ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
