@@ -207,8 +207,11 @@ def valid_PDB_dict(pdb_folder, res, cache_dir):
 
     # If the results are already calculated just load them and return:
     if os.path.isfile(dict_name) and not args.new_cache:
+        print('Loading "valid_PDB_dict" from cache.')
         QC_PDB_dict = pickle.load(open(dict_name, "rb"))
         return(QC_PDB_dict)
+    else:
+        print('Recreating "valid_PDB_dict", not found in cache.')
 
     # Else validate all structures:
     QC_PDB_dict = dict()
@@ -270,8 +273,11 @@ def parse_biolip(biolip_fnam, cache_dir):
 
     # If the results are already calculated just load them and return:
     if os.path.isfile(biolip_dict_name) and not args.new_cache:
+        print('Loading BioLiP dict from cache.')
         biolip_dict = pickle.load(open(biolip_dict_name, "rb"))
         return(biolip_dict)
+    else:
+        print('Recreating BioLiP dict, not found in cache.')
 
     # Do the parsing:
     biolip_dict = dict()
@@ -325,8 +331,11 @@ def parse_ss_dis(ss_dis_file, cache_dir):
 
     # If the results are already calculated just load them and return:
     if os.path.isfile(ss_dis_dict_name) and not args.new_cache:
+        print('Loading ss_dis dict form cache.')
         ss_dis_dict = pickle.load(open(ss_dis_dict_name, "rb"))
         return(ss_dis_dict)
+    else:
+        print('Recreating ss_dis dict, not found in cache.')
 
     # Do the parsing:
     ss_dis_dict = dict()
@@ -369,8 +378,11 @@ def seq_liglen_bin(min_seq_len, QC_PDB_dict, ss_dis_dict, biolip_dict, cache_dir
 
     # If the results are already calculated just load them and return:
     if os.path.isfile(seqlen_dict_name) and not args.new_cache:
+        print('Loading seq_liglen dict from cache.')
         seq_liglen_dict = pickle.load(open(seqlen_dict_name, "rb"))
         return(seq_liglen_dict)
+    else:
+        print('Recreating seg_liglen dict, not found in cache.')
 
     # Reverse (sequence: chainID) and dedup the ss_dis_dict:
     seq2chains = dedup_ss_dis(ss_dis_dict)
@@ -477,9 +489,12 @@ def find_chain_pairs(pair_dist, seq_len_dict, cache_dir):
 
     # If the results are already calculated just load them and return:
     if os.path.isfile(pair_dict_name) and os.path.isfile(pair_dist_name) and not args.new_cache:
+        print('Loading chain pairs and distribution dict from cache.')
         pairs = pickle.load(open(pair_dict_name, "rb"))
         distance_distribution = pickle.load(open(pair_dist_name, "rb"))
         return(pairs, distance_distribution)
+    else:
+        print('Recreates both chain pairs and distribution, not found in cache.')
 
     pairs = list()  # List of tuples with the pairs and mutation positions
     distance_distribution = dict()  # Only for debugging and/or interesting stats
@@ -536,9 +551,12 @@ def find_chain_pairs2(pair_dist, seq_liglen_dict, cache_dir):
 
     # If the results are already calculated just load them and return:
     if os.path.isfile(pair_dict_name) and os.path.isfile(pair_dist_name) and not args.new_cache:
+        print('Loading chain pairs and distribution dict from cache.')
         pairs = pickle.load(open(pair_dict_name, "rb"))
         distance_distribution = pickle.load(open(pair_dist_name, "rb"))
         return(pairs, distance_distribution)
+    else:
+        print('Recreates both chain pairs and distribution, not found in cache.')
 
     pairs = list()  # List of tuples with the pairs and mutation positions
     distance_distribution = dict()  # Only for debugging and/or interesting stats
