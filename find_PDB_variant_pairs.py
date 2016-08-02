@@ -157,7 +157,7 @@ blacklist = D_isomer_AA + ['SEP', 'SLZ', 'TPO', '1MA', '2MG', '5MC',
                            'M3L', 'OCS', 'PCA', 'CSR', 'ACE', 'CAF',
                            'OCS', 'SEB', '4IN', 'CSS', '4FB', 'XX1',
                            'SNN', 'ACY', 'CYQ', 'NIY', 'BIF', 'CYQ',
-                           'MES', 'CSD', 'ASB', 'KCX']
+                           'MES', 'CSD', 'ASB', 'KCX', 'LEF', 'PHI']
 
 
 # For silencing BioPDB/DSSP/other output. Taken from:
@@ -737,6 +737,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                 elif line[0:6] == 'HETATM' and line[21] == chain_name and line[17:20] in blacklist:
                     print('Residue found in blacklist for PDB:', pdb_file)
                     missing.append(chainID)
+                    fh_out.close()
                     break
         fh_out.close()
     # Remake the pair tuple, if any missing files or blacklisted residues:
