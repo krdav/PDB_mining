@@ -744,7 +744,8 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                     print(line, file=fh_out, end='')
                 # If residue in blacklist skip the pair:
                 elif line[0:6] == 'HETATM' and line[21] == chain_name and line[17:20] in blacklist:
-                    print('Residue found in blacklist for PDB:', pdb_file)
+                    if args.verbose:
+                        print('Residue found in blacklist for PDB:', pdb_file)
                     missing.append(chainID)
                     fh_out.close()
                     break
@@ -1413,7 +1414,7 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
     return(print_str)
 
 
-def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_numb, verbose):
+def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_numb):
     '''
     Find missing residues in the trimmed crystal structure
     and discard them if these missing residues are close to the mutation
@@ -1443,46 +1444,46 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_num
             res_list1[i].xtra['next2cut'] = 1      # Indicate a cut
             res_list2[i - 1].xtra['next2cut'] = 1  # Indicate a cut
             res_list2[i].xtra['next2cut'] = 1      # Indicate a cut
-            if verbose:
+            if args.verbose:
                 print('Missing residue detected between residue', i - 1, 'and', i, 'in pair', pair_name)
             mut_dist1 = res_list1[i - 1]['CA'] - res_list1[mut_pos_crystal - cut_offset]['CA']
             mut_dist2 = res_list1[i]['CA'] - res_list1[mut_pos_crystal - cut_offset]['CA']
             if mut_dist1 < min_dist_from_defect or mut_dist2 < min_dist_from_defect:
-                if verbose:
+                if args.verbose:
                     print('The missing residue is too close to the mutating residue. The pair is discarded:', pair_name)
                 return('bad_crystal', 'bad_crystal', 'bad_crystal')
             # Now check if the break creates a very short fragment, if so delete this fragment:
             if i < min_frag_len:
-                if verbose:
+                if args.verbose:
                     print('Small N-terminal fragment is pruned of.')
                 # Trim away the small N-terminal fragment:
                 res_list1 = res_list1[i:]
                 res_list2 = res_list2[i:]
                 # Check that the mutation is not inside the discarded fragment:
                 if mut_pos_crystal < i:
-                    if verbose:
+                    if args.verbose:
                         print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
                     return('bad_crystal', 'bad_crystal', 'bad_crystal')
                 cut_offset += i       # Add an offset to account for the truncation of the N-terminal
                 mut_pos_crystal -= i  # Correct the position of the mutation
             elif (n_res - (i - 1)) < min_frag_len:
-                if verbose:
+                if args.verbose:
                     print('Small C-terminal fragment is pruned of.')
                 # Trim away the small C-terminal fragment:
                 res_list1 = res_list1[0:i]
                 res_list2 = res_list2[0:i]
                 # Check that the mutation is not inside the discarded fragment:
                 if mut_pos_crystal > i:
-                    if verbose:
+                    if args.verbose:
                         print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
                     return('bad_crystal', 'bad_crystal', 'bad_crystal')
                 break  # No reason to ontinue loop because the remainder C-terminal have been cut away
         elif dist_3D < min_dist:
-            if verbose:
+            if args.verbose:
                 print('The distance between adjacent C-alpha atoms is suspiciously low (<{:.1f}A). The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(min_dist, pair_name, dist_3D, i - 1, i))
             return('bad_crystal', 'bad_crystal', 'bad_crystal')
         elif dist_3D > max_dist:
-            if verbose:
+            if args.verbose:
                 print('The distance between adjacent C-alpha atoms is suspiciously high (>{:.1f}A). This probably means that there is a large +3 residue gap in the crystal structure. The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(max_dist, pair_name, dist_3D, i - 1, i))
             return('bad_crystal', 'bad_crystal', 'bad_crystal')
 
@@ -1792,7 +1793,8 @@ def mp_worker(pair_info):
                 res_list1, res_list2, mut_pos_crystal = correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, id2)
                 # If the mutation was in the missing residues:
                 if 'no_mut' in [res_list1, res_list2, mut_pos_crystal]:
-                    print('Mutation was in the missing residues', single_pair, mut_pos_seq)
+                    if args.verbose:
+                        print('Mutation was in the missing residues', single_pair, mut_pos_seq)
                     continue
             except Exception as e:
                 print('correct_pdb_obj_pairs', single_pair, mut_pos_seq)
@@ -1801,18 +1803,21 @@ def mp_worker(pair_info):
 
             # By now all the residues should have a C-alpha:
             if missing_Calpha_residue_list(res_list1, res_list2):
-                print('A C-alpha was missing in a residue. The pair is skipped:', single_pair)
+                if args.verbose:
+                    print('A C-alpha was missing in a residue. The pair is skipped:', single_pair)
                 continue
             else:
                 # Cut out the crystal defects.
                 # Notice the verbose output, e.g. cut/missing residue etc. will be duplicaed:
-                res_list1, res_list2, mut_pos_crystal = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, 1, args.verbose)
+                res_list1, res_list2, mut_pos_crystal = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, 1)
                 if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
-                    print('Bad crystal', single_pair, mut_pos_seq)
+                    if args.verbose:
+                        print('Bad crystal', single_pair, mut_pos_seq)
                     continue
-                res_list1, res_list2, mut_pos_crystal = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, 2, args.verbose)
+                res_list1, res_list2, mut_pos_crystal = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, 2)
                 if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
-                    print('Bad crystal', single_pair, mut_pos_seq)
+                    if args.verbose:
+                        print('Bad crystal', single_pair, mut_pos_seq)
                     continue
 
             # Now add DSSP information to the pruned residue list:
@@ -1850,7 +1855,8 @@ def mp_worker(pair_info):
                         print_str += result
                         completed += 1
                 else:
-                    print('Pair deleted because it was too short just before printing:', single_pair)
+                    if args.verbose:
+                        print('Pair deleted because it was too short just before printing:', single_pair)
             except Exception as e:
                 print(single_pair, 'print_res')
                 print(e)
@@ -1886,7 +1892,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
             # Print stats:
             count += 1
             if count % 10 == 0:
-                print('Currently there have been {} out of {} pairs run and {} with success.'.format(started, n_pairs, completed))
+                print('Currently there {} out of {} pairs have run and {} with success.'.format(started, n_pairs, completed))
             if result:
                 print_str, s, c = result
                 completed += c
@@ -1932,8 +1938,7 @@ if __name__ == "__main__":
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
     # Failing pair:
-    pairs1 = [('5e5qB', '5e5yA', [24])]
-    # pairs1 = [('2wdtB', '1ogwA', [75])]
+    # pairs1 = [('5e5qB', '5e5yA', [24])]
 
     # Don't run the pair calculations when recreating the full cache:
     if args.new_cache:
