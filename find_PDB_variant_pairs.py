@@ -712,7 +712,6 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
 
     # Make a list of all the PDBs in the pair tuple:
     pdbs = pair[0].split('-') + pair[1].split('-')
-    print(pdbs)
     missing = list()
     # Then loop through all these PDBs and move them to the folder:
     for idx, chainID in enumerate(pdbs):
@@ -747,7 +746,6 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
         shutil.rmtree(pair_folder)
         return(False, False)
     pair = ('-'.join(p1), '-'.join(p2), pair[2])
-    print(pair)
     return(pair_folder, pair)
 
 
