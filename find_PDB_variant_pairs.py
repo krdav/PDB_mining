@@ -658,7 +658,9 @@ def mutation_positions_noX(seq1, seq2):
     For finding it on crystal level potential missing residues must be taken into account
     and therefore X residues are considered wildcards.
     '''
-    assert(len(seq1) == len(seq2))
+    # assert(len(seq1) == len(seq2))
+    if not len(seq1) == len(seq2):
+        raise Exception('Fail in "mutation_positions_noX" at following assertion: len(seq1) == len(seq2)')
     # Converted to a more simple list comprehension:
     pos_list = [pos for pos in range(0, len(seq1)) if seq1[pos] != seq2[pos]]
 
@@ -722,7 +724,6 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
     if len(p1) == 0 or len(p2) == 0:
         shutil.rmtree(pair_folder)
         return(False, False)
-        # raise Exception('Pair broken under folder creation. Either by blacklisted residue or missing file.')
     pair = ('-'.join(p1), '-'.join(p2), pair[2])
     print(pair)
     return(pair_folder, pair)
@@ -740,17 +741,17 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     mAA_seq_1 = seq1[mut_pos_seq]
     mAA_seq_2 = seq2[mut_pos_seq]
     # assert(len(seq1) == len(seq2))
-    if len(seq1) == len(seq2):
-        raise Exception('len(seq1) == len(seq2)')
+    if not len(seq1) == len(seq2):
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: len(seq1) == len(seq2)')
     # And the disorder between sequence and crystal structure:
     dis1 = ss_dis_dict[id1]['disorder']
     dis2 = ss_dis_dict[id2]['disorder']
     # assert(len(dis1) == len(dis2))
     # assert(len(dis1) == len(seq1))
-    if len(dis1) == len(dis2):
-        raise Exception('len(dis1) == len(dis2)')
-    if len(dis1) == len(dis1):
-        raise Exception('len(dis1) == len(dis1)')
+    if not len(dis1) == len(dis2):
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: len(dis1) == len(dis2)')
+    if not len(dis1) == len(dis1):
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: len(dis1) == len(dis1)')
 
     # Assert any oddities in the disorder string and/or crystal structure:
     res_count1 = dis1.count('-')
@@ -759,10 +760,10 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     X2_count = seq2.count('X')
     # assert((len(res_list1) + X1_count) == res_count1)
     # assert((len(res_list2) + X2_count) == res_count2)
-    if (len(res_list1) + X1_count) == res_count1:
-        raise Exception('(len(res_list1) + X1_count) == res_count1')
-    if (len(res_list2) + X2_count) == res_count2:
-        raise Exception('(len(res_list2) + X2_count) == res_count2')
+    if not (len(res_list1) + X1_count) == res_count1:
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: (len(res_list1) + X1_count) == res_count1')
+    if not (len(res_list2) + X2_count) == res_count2:
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: (len(res_list2) + X2_count) == res_count2')
 
 
 # To delete:
@@ -828,10 +829,10 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     mAA_crystal_2 = res_list_seq2[mut_pos_crystal]
     # assert(mAA_seq_1 == mAA_crystal_1)
     # assert(mAA_seq_2 == mAA_crystal_2)
-    if mAA_seq_1 == mAA_crystal_1:
-        raise Exception('mAA_seq_1 == mAA_crystal_1')
-    if mAA_seq_2 == mAA_crystal_2:
-        raise Exception('mAA_seq_2 == mAA_crystal_2')
+    if not mAA_seq_1 == mAA_crystal_1:
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: mAA_seq_1 == mAA_crystal_1')
+    if not mAA_seq_2 == mAA_crystal_2:
+        raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: mAA_seq_2 == mAA_crystal_2')
 
     return(res_list1, res_list2, mut_pos_crystal)
 
@@ -851,7 +852,9 @@ def Calpha_from_pair_residue_list(res_list1, res_list2):
     '''
     Returns two lists of the carbon shared alpha objects between two biopython PDB object.
     '''
-    assert(len(res_list1) == len(res_list2))
+    # assert(len(res_list1) == len(res_list2))
+    if not len(res_list1) == len(res_list2):
+        raise Exception('Fail in "Calpha_from_pair_residue_list" at following assertion: len(res_list1) == len(res_list2)')
     Ca_list1 = list()
     Ca_list2 = list()
     for idx in range(0, len(res_list1)):
@@ -988,7 +991,10 @@ def calc_diff_torsions(torsion1, torsion2):
     Calculate the difference in two lists of torsion angles
     as returned from the "calc_model_torsions" function.
     '''
-    assert(len(torsion1) == len(torsion2))
+    # assert(len(torsion1) == len(torsion2))
+    if not len(torsion1) == len(torsion2):
+        raise Exception('Fail in "calc_diff_torsions" at following assertion: len(torsion1) == len(torsion2)')
+
     torsion_diff = list()
     for idx in range(0, len(torsion1)):
         phi1 = torsion1[idx][0]
@@ -1396,6 +1402,8 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha):
 
     pair_name = pair_name = '-'.join(single_pair)
     n_res = len(Calpha)
+    assert(n_res == len(res_list1))
+    assert(n_res == len(res_list2))
     cut_offset = 0  # Offset to take into account the truncation of the residue list when cutting the N-terminal off
     for i in range(2, n_res):
         i -= cut_offset
@@ -1884,6 +1892,9 @@ if __name__ == "__main__":
     # seq_liglen_dict = dedup_seq_liglen_dict(seq_liglen_dict)  # Currently deprecated since this function is moved into the seq_liglen_bin function
     pairs1, distance_distribution = find_chain_pairs2(pair_distance, seq_liglen_dict, args.cache_dir)
     pairs1 = remove_homodimers_in_pairs(pairs1)
+
+    # Failing pair:
+    pairs1 = [('4kpdA', '4kqsA', [225])]
 
     # Don't run the pair calculations when recreating the full cache:
     if args.new_cache:
