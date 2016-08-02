@@ -1916,7 +1916,7 @@ if __name__ == "__main__":
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
     # Failing pair:
-    pairs1 = [('4kpdA', '4kqsA', [225])]
+    pairs1 = [('3eg0A', '4jjdA-3eg3A-3eguA', [55])]
 
     # Don't run the pair calculations when recreating the full cache:
     if args.new_cache:
