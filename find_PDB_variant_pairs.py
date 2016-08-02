@@ -1425,6 +1425,7 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_num
     pair_name = pair_name = '-'.join(single_pair)
     cut_offset = 0  # Offset to take into account the truncation of the residue list when cutting the N-terminal off
     for i in range(2, len(res_list1)):
+        n_res = len(res_list1)
         i -= cut_offset
         res_list1[i].xtra['next2cut'] = 0  # Start by assuming no cut
         res_list2[i].xtra['next2cut'] = 0  # Start by assuming no cut
@@ -1442,7 +1443,7 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_num
             mut_dist2 = res_list1[i]['CA'] - res_list1[mut_pos_crystal - cut_offset]['CA']
             if mut_dist1 < min_dist_from_defect or mut_dist2 < min_dist_from_defect:
                 print('The missing residue is too close to the mutating residue. The pair is discarded:', pair_name)
-                return('bad_crystal', 'bad_crystal')
+                return('bad_crystal', 'bad_crystal', 'bad_crystal')
             # Now check if the break creates a very short fragment, if so delete this fragment:
             if i < min_frag_len:
                 print('Small N-terminal fragment is pruned of.')
@@ -1452,7 +1453,7 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_num
                 # Check that the mutation is not inside the discarded fragment:
                 if mut_pos_crystal < i:
                     print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
-                    return('bad_crystal', 'bad_crystal')
+                    return('bad_crystal', 'bad_crystal', 'bad_crystal')
                 cut_offset += i       # Add an offset to account for the truncation of the N-terminal
                 mut_pos_crystal -= i  # Correct the position of the mutation
             elif (n_res - (i - 1)) < min_frag_len:
@@ -1463,14 +1464,14 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_num
                 # Check that the mutation is not inside the discarded fragment:
                 if mut_pos_crystal > i:
                     print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
-                    return('bad_crystal', 'bad_crystal')
+                    return('bad_crystal', 'bad_crystal', 'bad_crystal')
                 break  # No reason to ontinue loop because the remainder C-terminal have been cut away
         elif dist_3D < min_dist:
             print('The distance between adjacent C-alpha atoms is suspiciously low (<{:.1f}A). The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(min_dist, pair_name, dist_3D, i - 1, i))
-            return('bad_crystal', 'bad_crystal')
+            return('bad_crystal', 'bad_crystal', 'bad_crystal')
         elif dist_3D > max_dist:
             print('The distance between adjacent C-alpha atoms is suspiciously high (>{:.1f}A). This probably means that there is a large +3 residue gap in the crystal structure. The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(max_dist, pair_name, dist_3D, i - 1, i))
-            return('bad_crystal', 'bad_crystal')
+            return('bad_crystal', 'bad_crystal', 'bad_crystal')
 
     return(res_list1, res_list2, mut_pos_crystal)
 
@@ -1769,7 +1770,7 @@ def mp_worker(pair_info):
                 res_list1 = get_interactions(res_list1, pdb_obj1, chain1)
                 res_list2 = get_interactions(res_list2, pdb_obj2, chain2)
             except Exception as e:
-                print(single_pair, 'get_interactions')
+                print('get_interactions', single_pair, mut_pos_seq)
                 print(e)
                 continue
 
@@ -1781,7 +1782,7 @@ def mp_worker(pair_info):
                     print('Mutation was in the missing residues', single_pair, mut_pos_seq)
                     continue
             except Exception as e:
-                print(single_pair, 'correct_pdb_obj_pairs')
+                print('correct_pdb_obj_pairs', single_pair, mut_pos_seq)
                 print(e)
                 continue
 
@@ -1917,7 +1918,7 @@ if __name__ == "__main__":
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
     # Failing pair:
-    pairs1 = [('3eg0A', '4jjdA-3eg3A-3eguA', [55])]
+    # pairs1 = [('3eg0A', '4jjdA-3eg3A-3eguA', [55])]
 
     # Don't run the pair calculations when recreating the full cache:
     if args.new_cache:
