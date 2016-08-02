@@ -784,6 +784,12 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     if not (len(res_list1) + X1_count) == res_count1:
         raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: (len(res_list1) + X1_count) == res_count1')
     if not (len(res_list2) + X2_count) == res_count2:
+        print(dis2)
+        print(seq2)
+        print('X_count', X2_count)
+        print(len(dis2))
+        print(len(res_list2))
+        print(res_list2)
         raise Exception('Fail in "correct_pdb_obj_pairs" at following assertion: (len(res_list2) + X2_count) == res_count2')
 
 
@@ -835,14 +841,11 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     # Then join to a string:
     res_seq_list2 = [residue_type_3to1_map[res_obj.get_resname()] for res_obj in res_list2]
     res_list_seq2 = ''.join(res_seq_list2)
-
     # Check that the mutation is still there and not trimmed away:
-    try:
-        mut_list_crystal = mutation_positions_noX(res_list_seq1, res_list_seq2)
-    except:
-        if len(mut_list_crystal) == 0:
-            return('no_mut', 'no_mut', 'no_mut')
-
+    mut_list_crystal = mutation_positions_noX(res_list_seq1, res_list_seq2)
+    if len(mut_list_crystal) == 0:
+        return('no_mut', 'no_mut', 'no_mut')
+    
     # Use the amino acid identity on the mutation position as and anchor point,
     # to check whether everything went as it should in the trimming:
     mut_pos_crystal = mut_list_crystal[0]
@@ -1917,7 +1920,8 @@ if __name__ == "__main__":
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
     # Failing pair:
-    # pairs1 = [('3eg0A', '4jjdA-3eg3A-3eguA', [55])]
+    pairs1 = [('5e5qB', '5e5yA', [24])]
+    # pairs1 = [('2wdtB', '1ogwA', [75])]
 
     # Don't run the pair calculations when recreating the full cache:
     if args.new_cache:
