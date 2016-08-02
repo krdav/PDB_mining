@@ -215,9 +215,13 @@ def valid_PDB_dict(pdb_folder, res, cache_dir):
 
     # Else validate all structures:
     QC_PDB_dict = dict()
+    progress = 0  # How far are we in the process
     # Make an os.walk to go through all files in all folders:
     for dirname, dirnames, filenames in os.walk(pdb_folder):
         for filename in filenames:
+            progress += 1
+            if progress % 100 == 0:
+                print('{} files have been processed'.format(progress))
             PDB_path = os.path.join(dirname, filename)
             PDB_id = PDB_path.split('/')[-1][3:7]
             xray = 0         # Swicth type variable
