@@ -75,6 +75,13 @@ parser.add_argument(
     dest="np",
     metavar="int",
     help="Number of processes to use in a pool.")
+parser.add_argument(
+    "-nc",
+    "--new_cache",
+    type=int,
+    dest="new_cache",
+    metavar="switch",
+    help="Make new cache? 1/0")
 
 # Set default arguments:
 parser.set_defaults(
@@ -84,7 +91,8 @@ parser.set_defaults(
     biolip_fnam='BioLiP_all.csv',
     scratch_dir='/home/projects/cu_10020/kortemme_visit/pdb_mining/scratch',
     result_file='phi_psi_vs_dist.tab',
-    np=2)
+    np=2,
+    new_cache=0)
 args = parser.parse_args()
 
 # System specific variables:
@@ -198,7 +206,7 @@ def valid_PDB_dict(pdb_folder, res, cache_dir):
     dict_name = 'QC_PDB_RES_' + str(res) + '_' + str(st) + '.p'
 
     # If the results are already calculated just load them and return:
-    if os.path.isfile(dict_name):
+    if os.path.isfile(dict_name) and not args.new_cache:
         QC_PDB_dict = pickle.load(open(dict_name, "rb"))
         return(QC_PDB_dict)
 
@@ -209,30 +217,34 @@ def valid_PDB_dict(pdb_folder, res, cache_dir):
         for filename in filenames:
             PDB_path = os.path.join(dirname, filename)
             PDB_id = PDB_path.split('/')[-1][3:7]
-            xray = 0  # Swicth type variable
+            xray = 0         # Swicth type variable
             resolution = 0   # Swicth type variable
+            canonical = 1    # Swicth type variable, default 1
             # Notice file getting opened is gzipped a file and therefore the input stream i binary:
             with gzip.open(PDB_path, 'r') as PDB_inf:
                 lines = PDB_inf.readlines()
                 for line in lines:
-                    # Find the line that tells if the PBD file is from X-RAY diffraction,
-                    # also translate the unicode string to binary before matching:
-                    if line.startswith(b'EXPDTA    X-RAY DIFFRACTION'):
+                    # Decode from binary to unicode:
+                    line = str(line, 'utf-8')
+                    # Find the line that tells if the PBD file is from X-RAY diffraction:
+                    if line.startswith('EXPDTA    X-RAY DIFFRACTION'):
                         xray = 1
                     # Find the resolution line:
-                    elif line.startswith(b'REMARK   2 RESOLUTION.'):
+                    elif line.startswith('REMARK   2 RESOLUTION.'):
                         # Validate that the resolution is under the cutoff:
-                        res = line[22:29]
-                        res_str = str(res, 'utf-8')
+                        res_str = line[22:29]
                         try:
                             res_float = float(res_str)
                             if res_float < res:
                                 resolution = 1
                         except:
                             pass
-
+                    # Exlude amino acids on the blacklist:
+                    elif (line[0:6] == 'ATOM  ' or line[0:6] == 'HETATM') and line[17:20] in blacklist:
+                        canonical = 0
+                        break
             # A PDB ID is kept if both xray and resolution flags checks out:
-            keep = xray * resolution  # Both switches must be on to keep
+            keep = xray * resolution * canonical  # All switches must be on to keep
             QC_PDB_dict[PDB_id] = keep
     # Lastly the results dictionary are dumped with Pickle:
     pickle.dump(QC_PDB_dict, open(dict_name, "wb"))
@@ -257,7 +269,7 @@ def parse_biolip(biolip_fnam, cache_dir):
     biolip_dict_name = 'biolip_dict_' + str(st) + '.p'
 
     # If the results are already calculated just load them and return:
-    if os.path.isfile(biolip_dict_name):
+    if os.path.isfile(biolip_dict_name) and not args.new_cache:
         biolip_dict = pickle.load(open(biolip_dict_name, "rb"))
         return(biolip_dict)
 
@@ -312,7 +324,7 @@ def parse_ss_dis(ss_dis_file, cache_dir):
     ss_dis_dict_name = 'ss_dis_dict_' + str(st) + '.p'
 
     # If the results are already calculated just load them and return:
-    if os.path.isfile(ss_dis_dict_name):
+    if os.path.isfile(ss_dis_dict_name) and not args.new_cache:
         ss_dis_dict = pickle.load(open(ss_dis_dict_name, "rb"))
         return(ss_dis_dict)
 
@@ -356,7 +368,7 @@ def seq_liglen_bin(min_seq_len, QC_PDB_dict, ss_dis_dict, biolip_dict, cache_dir
     seqlen_dict_name = 'seq_liglen_dict_' + str(st) + '.p'
 
     # If the results are already calculated just load them and return:
-    if os.path.isfile(seqlen_dict_name):
+    if os.path.isfile(seqlen_dict_name) and not args.new_cache:
         seq_liglen_dict = pickle.load(open(seqlen_dict_name, "rb"))
         return(seq_liglen_dict)
 
@@ -464,7 +476,7 @@ def find_chain_pairs(pair_dist, seq_len_dict, cache_dir):
     pair_dist_name = 'mut_pairs_dist' + str(pair_dist) + '_' + str(st) + '.p'
 
     # If the results are already calculated just load them and return:
-    if os.path.isfile(pair_dict_name) and os.path.isfile(pair_dist_name):
+    if os.path.isfile(pair_dict_name) and os.path.isfile(pair_dist_name) and not args.new_cache:
         pairs = pickle.load(open(pair_dict_name, "rb"))
         distance_distribution = pickle.load(open(pair_dist_name, "rb"))
         return(pairs, distance_distribution)
@@ -523,7 +535,7 @@ def find_chain_pairs2(pair_dist, seq_liglen_dict, cache_dir):
     pair_dist_name = 'mut_pairs_dist_v2_' + str(pair_dist) + '_' + str(st) + '.p'
 
     # If the results are already calculated just load them and return:
-    if os.path.isfile(pair_dict_name) and os.path.isfile(pair_dist_name):
+    if os.path.isfile(pair_dict_name) and os.path.isfile(pair_dist_name) and not args.new_cache:
         pairs = pickle.load(open(pair_dict_name, "rb"))
         distance_distribution = pickle.load(open(pair_dist_name, "rb"))
         return(pairs, distance_distribution)
@@ -1840,7 +1852,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
 
 
 if __name__ == "__main__":
-    # Define input variables:
+    # Define quality cutoffs:
     res = 2.5           # Use minimum 2.5A resolution
     min_seq_len = 60    # Minimum sequence length to avoid small unstructured proteins
     pair_distance = 1   # The hamming distance of the pairs to mine for
@@ -1873,5 +1885,9 @@ if __name__ == "__main__":
     pairs1, distance_distribution = find_chain_pairs2(pair_distance, seq_liglen_dict, args.cache_dir)
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
-    # Do all the calculation in a parallel pool and print the results:
-    mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
+    # Don't run the pair calculations when recreating the full cache:
+    if args.new_cache:
+        print('New cached values have been generated and written to the cache folder. Run this script again without the new cache options to use this new cache creating the pair dataset.')
+    else:
+        # Do all the calculation in a parallel pool and print the results:
+        mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
