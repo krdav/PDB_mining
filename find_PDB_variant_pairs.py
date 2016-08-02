@@ -700,7 +700,7 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                     print(line, file=fh_out, end='')
                 # If residue in blacklist skip the pair:
                 elif line[0:6] == 'HETATM' and line[21] == chain_name and line[17:20] in blacklist:
-                    print('Residue found in blacklist', pdb_file)
+                    print('Residue found in blacklist for PDB:', pdb_file)
                     missing.append(chainID)
                     break
         fh_out.close()
@@ -727,20 +727,31 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     # Also find the amino acid on the mutation position:
     mAA_seq_1 = seq1[mut_pos_seq]
     mAA_seq_2 = seq2[mut_pos_seq]
-    assert(len(seq1) == len(seq2))
+    # assert(len(seq1) == len(seq2))
+    if len(seq1) == len(seq2):
+        raise Exception('len(seq1) == len(seq2)')
     # And the disorder between sequence and crystal structure:
     dis1 = ss_dis_dict[id1]['disorder']
     dis2 = ss_dis_dict[id2]['disorder']
-    assert(len(dis1) == len(dis2))
-    assert(len(dis1) == len(seq1))
+    # assert(len(dis1) == len(dis2))
+    # assert(len(dis1) == len(seq1))
+    if len(dis1) == len(dis2):
+        raise Exception('len(dis1) == len(dis2)')
+    if len(dis1) == len(dis1):
+        raise Exception('len(dis1) == len(dis1)')
 
     # Assert any oddities in the disorder string and/or crystal structure:
     res_count1 = dis1.count('-')
     res_count2 = dis2.count('-')
     X1_count = seq1.count('X')
     X2_count = seq2.count('X')
-    assert((len(res_list1) + X1_count) == res_count1)
-    assert((len(res_list2) + X2_count) == res_count2)
+    # assert((len(res_list1) + X1_count) == res_count1)
+    # assert((len(res_list2) + X2_count) == res_count2)
+    if (len(res_list1) + X1_count) == res_count1:
+        raise Exception('(len(res_list1) + X1_count) == res_count1')
+    if (len(res_list2) + X2_count) == res_count2:
+        raise Exception('(len(res_list2) + X2_count) == res_count2')
+
 
 # To delete:
 ##### Remove this out-commented part if things are running as usual:
@@ -803,8 +814,12 @@ def correct_pdb_obj_pairs(res_list1, res_list2, mut_pos_seq, ss_dis_dict, id1, i
     mut_pos_crystal = mut_list_crystal[0]
     mAA_crystal_1 = res_list_seq1[mut_pos_crystal]
     mAA_crystal_2 = res_list_seq2[mut_pos_crystal]
-    assert(mAA_seq_1 == mAA_crystal_1)
-    assert(mAA_seq_2 == mAA_crystal_2)
+    # assert(mAA_seq_1 == mAA_crystal_1)
+    # assert(mAA_seq_2 == mAA_crystal_2)
+    if mAA_seq_1 == mAA_crystal_1:
+        raise Exception('mAA_seq_1 == mAA_crystal_1')
+    if mAA_seq_2 == mAA_crystal_2:
+        raise Exception('mAA_seq_2 == mAA_crystal_2')
 
     return(res_list1, res_list2, mut_pos_crystal)
 
@@ -1230,16 +1245,16 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
     prot_len = len(mut_dist)
     AA_wt = res_list1[mut_pos_crystal].get_resname()
     AA_mut = res_list2[mut_pos_crystal].get_resname()
-    ss_wt = res_list1[mut_pos_crystal].xtra['SS_DSSP']
-    ss_mut = res_list2[mut_pos_crystal].xtra['SS_DSSP']
-    ASA_wt = res_list1[mut_pos_crystal].xtra['EXP_DSSP_ASA']
-    ASA_mut = res_list2[mut_pos_crystal].xtra['EXP_DSSP_ASA']
-    RASA_wt = res_list1[mut_pos_crystal].xtra['EXP_DSSP_RASA']
-    RASA_mut = res_list2[mut_pos_crystal].xtra['EXP_DSSP_RASA']
-    ASA_trim_wt = res_list1[mut_pos_crystal].xtra['EXP_DSSP_ASA_trim']
-    ASA_trim_mut = res_list2[mut_pos_crystal].xtra['EXP_DSSP_ASA_trim']
-    RASA_trim_wt = res_list1[mut_pos_crystal].xtra['EXP_DSSP_RASA_trim']
-    RASA_trim_mut = res_list2[mut_pos_crystal].xtra['EXP_DSSP_RASA_trim']
+    ss_wt = res_list1[mut_pos_crystal].xtra.get('SS_DSSP') or 'NA'
+    ss_mut = res_list2[mut_pos_crystal].xtra.get('SS_DSSP') or 'NA'
+    ASA_wt = res_list1[mut_pos_crystal].xtra.get('EXP_DSSP_ASA') or 'NA'
+    ASA_mut = res_list2[mut_pos_crystal].xtra.get('EXP_DSSP_ASA') or 'NA'
+    RASA_wt = res_list1[mut_pos_crystal].xtra.get('EXP_DSSP_RASA') or 'NA'
+    RASA_mut = res_list2[mut_pos_crystal].xtra.get('EXP_DSSP_RASA') or 'NA'
+    ASA_trim_wt = res_list1[mut_pos_crystal].xtra.get('EXP_DSSP_ASA_trim') or 'NA'
+    ASA_trim_mut = res_list2[mut_pos_crystal].xtra.get('EXP_DSSP_ASA_trim') or 'NA'
+    RASA_trim_wt = res_list1[mut_pos_crystal].xtra.get('EXP_DSSP_RASA_trim') or 'NA'
+    RASA_trim_mut = res_list2[mut_pos_crystal].xtra.get('EXP_DSSP_RASA_trim') or 'NA'
     ichain_numb_wt = res_list1[mut_pos_crystal].xtra['ichain_numb']
     ichain_numb_mut = res_list2[mut_pos_crystal].xtra['ichain_numb']
     idist_wt = res_list1[mut_pos_crystal].xtra['idist']
@@ -1262,16 +1277,16 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
         dphi = torsion_diff[i][0]
         dpsi = torsion_diff[i][1]
         AA_res = res_list1[i].get_resname()
-        ss1_res = res_list1[i].xtra['SS_DSSP']
-        ss2_res = res_list2[i].xtra['SS_DSSP']
-        ASA1_res = res_list1[i].xtra['EXP_DSSP_ASA']
-        ASA2_res = res_list2[i].xtra['EXP_DSSP_ASA']
-        RASA1_res = res_list1[i].xtra['EXP_DSSP_RASA']
-        RASA2_res = res_list2[i].xtra['EXP_DSSP_RASA']
-        ASA1_trim_res = res_list1[i].xtra['EXP_DSSP_ASA_trim']
-        ASA2_trim_res = res_list2[i].xtra['EXP_DSSP_ASA_trim']
-        RASA1_trim_res = res_list1[i].xtra['EXP_DSSP_RASA_trim']
-        RASA2_trim_res = res_list2[i].xtra['EXP_DSSP_RASA_trim']
+        ss1_res = res_list1[i].xtra.get('SS_DSSP') or 'NA'
+        ss2_res = res_list2[i].xtra.get('SS_DSSP') or 'NA'
+        ASA1_res = res_list1[i].xtra.get('EXP_DSSP_ASA') or 'NA'
+        ASA2_res = res_list2[i].xtra.get('EXP_DSSP_ASA') or 'NA'
+        RASA1_res = res_list1[i].xtra.get('EXP_DSSP_RASA') or 'NA'
+        RASA2_res = res_list2[i].xtra.get('EXP_DSSP_RASA') or 'NA'
+        ASA1_trim_res = res_list1[i].xtra.get('EXP_DSSP_ASA_trim') or 'NA'
+        ASA2_trim_res = res_list2[i].xtra.get('EXP_DSSP_ASA_trim') or 'NA'
+        RASA1_trim_res = res_list1[i].xtra.get('EXP_DSSP_RASA_trim') or 'NA'
+        RASA2_trim_res = res_list2[i].xtra.get('EXP_DSSP_RASA_trim') or 'NA'
         bfactor_back1_res = bfactor_backbone(res_list1[i])
         bfactor_back2_res = bfactor_backbone(res_list2[i])
         bfactor_side1_res = bfactor_sidechain(res_list1[i])
@@ -1670,7 +1685,7 @@ def mp_worker(pair_info):
     # Create a tmp folder for this pair and move the PDB files needed:
     try:
         pair_folder, pair_tuple = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
-    except:
+    except Exception as e:
         print(e)
         return(False)
     if not pair_folder:
@@ -1708,7 +1723,7 @@ def mp_worker(pair_info):
             try:
                 res_list1 = get_interactions(res_list1, pdb_obj1, chain1)
                 res_list2 = get_interactions(res_list2, pdb_obj2, chain2)
-            except:
+            except Exception as e:
                 print(single_pair, 'get_interactions')
                 print(e)
                 continue
@@ -1730,7 +1745,8 @@ def mp_worker(pair_info):
                 print('A C-alpha was missing in a residue. The pair is skipped:', single_pair)
                 continue
             else:
-                # Cut out the crystal defects:
+                # Cut out the crystal defects.
+                # Notice the verbose output, e.g. cut/missing residue etc. will be duplicaed:
                 Calpha1 = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
                 Calpha2 = Calpha_from_residue_list(res_list2)  # Use C-alpha to measure distance
                 res_list1, res_list2 = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha1)
