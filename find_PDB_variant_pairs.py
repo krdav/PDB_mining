@@ -1408,7 +1408,7 @@ def print_res(single_pair, mut_dist, torsion_diff, res_list1, res_list2, mut_pos
     return(print_str)
 
 
-def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha):
+def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, list_numb):
     '''
     Find missing residues in the trimmed crystal structure
     and discard them if these missing residues are close to the mutation
@@ -1423,28 +1423,29 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha):
     min_frag_len = 20          # Mininum length between termina and cut before terminal fragment is removed
 
     pair_name = pair_name = '-'.join(single_pair)
-    n_res = len(Calpha)
-    assert(n_res == len(res_list1))
-    assert(n_res == len(res_list2))
     cut_offset = 0  # Offset to take into account the truncation of the residue list when cutting the N-terminal off
-    for i in range(2, n_res):
+    for i in range(2, len(res_list1)):
         i -= cut_offset
         res_list1[i].xtra['next2cut'] = 0  # Start by assuming no cut
         res_list2[i].xtra['next2cut'] = 0  # Start by assuming no cut
-        dist_3D = Calpha[i] - Calpha[i - 1]
+        if list_numb == 1:
+            dist_3D = res_list1[i]['CA'] - res_list1[i - 1]['CA']
+        elif list_numb == 2:
+            dist_3D = res_list2[i]['CA'] - res_list2[i - 1]['CA']
         if dist_3D > cut_dist and dist_3D < max_dist:
             res_list1[i - 1].xtra['next2cut'] = 1  # Indicate a cut
             res_list1[i].xtra['next2cut'] = 1      # Indicate a cut
             res_list2[i - 1].xtra['next2cut'] = 1  # Indicate a cut
             res_list2[i].xtra['next2cut'] = 1      # Indicate a cut
             print('Missing residue detected between residue', i - 1, 'and', i, 'in pair', pair_name)
-            mut_dist1 = Calpha[i - 1] - Calpha[mut_pos_crystal]
-            mut_dist2 = Calpha[i] - Calpha[mut_pos_crystal]
+            mut_dist1 = res_list1[i - 1]['CA'] - res_list1[mut_pos_crystal - cut_offset]['CA']
+            mut_dist2 = res_list1[i]['CA'] - res_list1[mut_pos_crystal - cut_offset]['CA']
             if mut_dist1 < min_dist_from_defect or mut_dist2 < min_dist_from_defect:
                 print('The missing residue is too close to the mutating residue. The pair is discarded:', pair_name)
                 return('bad_crystal', 'bad_crystal')
             # Now check if the break creates a very short fragment, if so delete this fragment:
             if i < min_frag_len:
+                print('Small N-terminal fragment is pruned of.')
                 # Trim away the small N-terminal fragment:
                 res_list1 = res_list1[i:]
                 res_list2 = res_list2[i:]
@@ -1452,8 +1453,10 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha):
                 if mut_pos_crystal < i:
                     print('The mutation is observed inside a short fragment broken by a missing residue. The pair is discarded:', pair_name)
                     return('bad_crystal', 'bad_crystal')
-                cut_offset = i  # Add an offset to account for the truncation of the N-terminal
+                cut_offset += i       # Add an offset to account for the truncation of the N-terminal
+                mut_pos_crystal -= i  # Correct the position of the mutation
             elif (n_res - (i - 1)) < min_frag_len:
+                print('Small C-terminal fragment is pruned of.')
                 # Trim away the small C-terminal fragment:
                 res_list1 = res_list1[0:i]
                 res_list2 = res_list2[0:i]
@@ -1469,7 +1472,7 @@ def cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha):
             print('The distance between adjacent C-alpha atoms is suspiciously high (>{:.1f}A). This probably means that there is a large +3 residue gap in the crystal structure. The pair is discarded: {}, with a distance of {:.1f} between residue {} and {}'.format(max_dist, pair_name, dist_3D, i - 1, i))
             return('bad_crystal', 'bad_crystal')
 
-    return(res_list1, res_list2)
+    return(res_list1, res_list2, mut_pos_crystal)
 
 
 # To delete:
@@ -1789,13 +1792,11 @@ def mp_worker(pair_info):
             else:
                 # Cut out the crystal defects.
                 # Notice the verbose output, e.g. cut/missing residue etc. will be duplicaed:
-                Calpha1 = Calpha_from_residue_list(res_list1)  # Use C-alpha to measure distance
-                Calpha2 = Calpha_from_residue_list(res_list2)  # Use C-alpha to measure distance
-                res_list1, res_list2 = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha1)
+                res_list1, res_list2, mut_pos_crystal = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, 1)
                 if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
                     print('Bad crystal', single_pair, mut_pos_seq)
                     continue
-                res_list1, res_list2 = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, Calpha2)
+                res_list1, res_list2, mut_pos_crystal = cut_bad_crystal(res_list1, res_list2, mut_pos_crystal, single_pair, 2)
                 if 'bad_crystal' in [res_list1, res_list2, mut_pos_crystal]:
                     print('Bad crystal', single_pair, mut_pos_seq)
                     continue
