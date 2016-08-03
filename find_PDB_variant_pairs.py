@@ -166,7 +166,8 @@ blacklist = D_isomer_AA + ['SEP', 'SLZ', 'TPO', '1MA', '2MG', '5MC',
                            'OCS', 'SEB', '4IN', 'CSS', '4FB', 'XX1',
                            'SNN', 'ACY', 'CYQ', 'NIY', 'BIF', 'CYQ',
                            'MES', 'CSD', 'ASB', 'KCX', 'LEF', 'PHI',
-                           'CSU']
+                           'CSU', 'ISA', 'QPA', 'CSX', 'FRT', 'SOC',
+                           'TYT']
 
 
 # For silencing BioPDB/DSSP/other output. Taken from:
@@ -1763,13 +1764,18 @@ def mp_worker(pair_info):
             single_pair = (pdbs_tuple[0][i], pdbs_tuple[1][j])
             # PDBParser is part of Bio.PDB:
             parser = PDBParser()
-            # Silence the error messages:
-            with stdchannel_redirected(sys.stderr, os.devnull):
-                # Parse the pdbs into BioPDB objects:
-                pdb_obj1 = parser.get_structure(single_pair[0], single_pair[0][0:-1])
-                pdb_obj2 = parser.get_structure(single_pair[1], single_pair[1][0:-1])
-                # Add DSSP information on the full PDB file:
-                pdb_obj1, pdb_obj2 = add_dssp_to_pdb_obj(pair_folder, single_pair, pdb_obj1, pdb_obj2)
+            try:
+                # Silence the error messages:
+                with stdchannel_redirected(sys.stderr, os.devnull):
+                    # Parse the pdbs into BioPDB objects:
+                    pdb_obj1 = parser.get_structure(single_pair[0], single_pair[0][0:-1])
+                    pdb_obj2 = parser.get_structure(single_pair[1], single_pair[1][0:-1])
+                    # Add DSSP information on the full PDB file:
+                    pdb_obj1, pdb_obj2 = add_dssp_to_pdb_obj(pair_folder, single_pair, pdb_obj1, pdb_obj2)
+            except Exception as e:
+                print('add_dssp_to_pdb_obj', single_pair, mut_pos_seq)
+                print(e)
+                continue
             # Extract the list of residue objects:
             id1 = pdb_obj1.get_id()
             id2 = pdb_obj2.get_id()
@@ -1826,7 +1832,7 @@ def mp_worker(pair_info):
                 with stdchannel_redirected(sys.stderr, os.devnull):
                     res_list1, res_list2 = add_dssp_to_reslist(pair_folder, single_pair, res_list1, res_list2, parser)
             except Exception as e:
-                print(single_pair, 'add_dssp_to_reslist')
+                print('add_dssp_to_reslist', single_pair, mut_pos_seq)
                 print(e)
                 continue
 
@@ -1834,7 +1840,7 @@ def mp_worker(pair_info):
             try:
                 torsion_diff = align_and_find_torsions(res_list1, res_list2)
             except Exception as e:
-                print(single_pair, 'align_and_find_torsions')
+                print('align_and_find_torsions', single_pair, mut_pos_seq)
                 print(e)
                 continue
 
@@ -1842,7 +1848,7 @@ def mp_worker(pair_info):
             try:
                 mut_dist = dist_from_mut(res_list1, mut_pos_crystal)
             except Exception as e:
-                print(single_pair, 'dist_from_mut')
+                print('dist_from_mut', single_pair, mut_pos_seq)
                 print(e)
                 continue
 
@@ -1892,7 +1898,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
             # Print stats:
             count += 1
             if count % 10 == 0:
-                print('Currently there {} out of {} pairs have run and {} with success.'.format(started, n_pairs, completed))
+                print('Currently {} out of {} pairs have run and {} with success.'.format(started, n_pairs, completed))
             if result:
                 print_str, s, c = result
                 completed += c
