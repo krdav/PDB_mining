@@ -10,7 +10,6 @@ import math
 import contextlib
 import multiprocessing
 import argparse
-import stat
 # Updated biopython on Computerome:
 # if os.uname()[1] == 'computerome02':
 #     sys.path.insert(0, '/home/projects/cu_10020/apps/python3-site-packages/lib/python/')
@@ -84,6 +83,13 @@ parser.add_argument(
     metavar="int",
     help="Split run into individual jobs submitted with qsub to a PBS cluster 0, 1, 2, 3..")
 parser.add_argument(
+    "-npool",
+    "--np_pool",
+    type=int,
+    dest="np_pool",
+    metavar="int",
+    help="How many processes should be started for each pool.")
+parser.add_argument(
     "-pbs_range",
     "--pbs_range",
     type=str,
@@ -121,6 +127,7 @@ parser.set_defaults(
     scratch_dir='/home/projects/cu_10020/kortemme_visit/pdb_mining/scratch',
     result_file='phi_psi_vs_dist.tab',
     np=2,
+    np_pool=5,
     new_cache=0,
     pbs=0,
     pbs_range=0,
@@ -1904,7 +1911,7 @@ def mp_worker(pair_info):
     return([print_str, started, completed])
 
 
-def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
+def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, n_pool):
     '''
     Multi process handler. Start a pool of processes and queues them
     on a number of cores. Runs the mp_worker and prints the output sequentially.
@@ -1929,7 +1936,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     n_pairs = len(pair_info_list)
 
     # Start the pool with X cores:
-    pool = multiprocessing.Pool(np)
+    pool = multiprocessing.Pool(np_pool)
 
     # Continue printing the results from each process in the pool:
     with open(result_file, 'a') as fh:
@@ -2045,7 +2052,7 @@ if __name__ == "__main__":
     if args.pbs:
         njobs = len(pairs1)
         flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir
-        ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -pbs 0' + ' -v ' + str(args.verbose)
+        ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -np ' + str(args.np_pool) + ' -pbs 0' + ' -v ' + str(args.verbose)
         pbs_submission(args.pbs, njobs, flags)
     else:
         # Failing pair:
@@ -2056,5 +2063,5 @@ if __name__ == "__main__":
             print('New cached values have been generated and written to the cache folder. Run this script again without the new cache options to use this new cache creating the pair dataset.')
         else:
             # Do all the calculation in a parallel pool and print the results:
-            mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
+            mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np_pool)
 
