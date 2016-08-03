@@ -77,6 +77,27 @@ parser.add_argument(
     metavar="int",
     help="Number of processes to use in a pool.")
 parser.add_argument(
+    "-pbs",
+    "--pbs_queue",
+    type=int,
+    dest="pbs",
+    metavar="int",
+    help="Split run into individual jobs submitted with qsub to a PBS cluster 0, 1, 2, 3..")
+parser.add_argument(
+    "-pbs_range",
+    "--pbs_range",
+    type=str,
+    dest="pbs_range",
+    metavar="str",
+    help="String with a range indicating the pairs to run for a particular PBS submission.")
+parser.add_argument(
+    "-merge",
+    "--merge_pbs_results",
+    type=int,
+    dest="merge",
+    metavar="switch",
+    help="Separate run to merge results from a finished PBS run.")
+parser.add_argument(
     "-nc",
     "--new_cache",
     type=int,
@@ -101,6 +122,9 @@ parser.set_defaults(
     result_file='phi_psi_vs_dist.tab',
     np=2,
     new_cache=0,
+    pbs=0,
+    pbs_range=0,
+    merge=0,
     verbose=0)
 args = parser.parse_args()
 
@@ -121,6 +145,8 @@ args.scratch_dir = args.scratch_dir.rstrip('/')
 run_dir = os.getcwd()
 if '/' not in args.result_file:
     args.result_file = run_dir + '/' + args.result_file
+if pbs_range:
+    args.result_file += '_' + args.pbs_range
 
 # Global variables:
 residue_type_3to1_map = {
@@ -1883,19 +1909,28 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     Multi process handler. Start a pool of processes and queues them
     on a number of cores. Runs the mp_worker and prints the output sequentially.
     '''
+
+    if not args.pbs_range:
+        # Print output header:
+        print_header(result_file)
+    else:
+        run_range = args.pbs_range.split('-')
+        run_range = list(map(int, run_range))
+
     # Generate a list of info that is needed for each pair
     # to run indepedently by the worker process:
     pair_info_list = list()
     n_comparisons = 0
     for pair_number, pair_tuple in enumerate(pairs):
+        if pair_number < run_range[0] or pair_number > run_range[1]:
+            continue
         pair_info_list.append([pair_number, pair_tuple, ss_dis_dict, scratch_dir, pdb_folder])
         n_comparisons += len(pair_tuple[0].split('-')) * len(pair_tuple[1].split('-'))
     n_pairs = len(pair_info_list)
 
     # Start the pool with X cores:
     pool = multiprocessing.Pool(np)
-    # Print output header:
-    print_header(result_file)
+
     # Continue printing the results from each process in the pool:
     with open(result_file, 'a') as fh:
         completed = 0
@@ -1918,40 +1953,62 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     pool.join()
 
 
-_fd_types = (
-    ('REG', stat.S_ISREG),
-    ('FIFO', stat.S_ISFIFO),
-    ('DIR', stat.S_ISDIR),
-    ('CHR', stat.S_ISCHR),
-    ('BLK', stat.S_ISBLK),
-    ('LNK', stat.S_ISLNK),
-    ('SOCK', stat.S_ISSOCK)
-)
+def pbs_submission(nsub, njobs, flags):
+    jobs_per_sub = round(njobs / nsubs + 0.5)
+    script_path = os.path.realpath(__file__)
+    for i in range(nsub):
+        log_err = 'pair_log' + str(i) + '.err'
+        log_out = 'pair_log' + str(i) + '.out'
+        run_range = str(i * jobs_per_sub) + '-' + str((i + 1) * jobs_per_sub - 1)
+
+        s1 = '#!/bin/sh\n\
+        ### Note: No commands may be executed until after the #PBS lines\n\
+        ### Account information\n\
+        #PBS -W group_list=cu_10020 -A cu_10020\n\
+        ### Job name (comment out the next line to get the name of the script used as the job name)\n\
+        #PBS -N krdav_job\n\
+        ### Output files (comment outa the next 2 lines to get the job name used instead)\n' + '#PBS -e ' + log_err + '\n' + '#PBS -o ' + log_out + '\n' + '### Email: no (n)\n\
+        #PBS -M n\n\
+        ### Make the job rerunable (y)\n\
+        #PBS -r y\n\
+        ### Number of nodes\n\
+        #PBS -l nodes=1:ppn=' + str(args.np) + ':thinnode\n\
+        ### Requesting time - 12 hours - overwrites **long** queue setting\n\
+        #PBS -l walltime=24:00:00\n\
+        \n\
+        echo This is the STDOUT stream from a PBS Torque submission script.\n\
+        # Go to the directory from where the job was submitted (initial directory is $HOME)\n\
+        echo Working directory is $PBS_O_WORKDIR\n\
+        cd $PBS_O_WORKDIR\n\
+        \n\
+        # Load user Bash settings:\n\
+        source /home/people/krdav/.bash_profile\n\
+        \n\
+        echo Modules and user Bash settings was loaded.\n\
+        \n\
+        # Catch the time before the intensive calculations:\n\
+        res1=$(date +%s.%N)\n\
+        \n\
+        module unload anaconda2/4.0.0\n\
+        module load anaconda3/4.0.0\n\
+        \n\
+        echo  Now the user defined script is run. After the ---- line, the STDOUT stream from the script is pasted.\n\
+        echo -----------------------------------------------------------------------------------------------------\n\
+        # Run the desired script:\n\
+        python ' + script_path + flags + ' -pbs_range ' + run_range + '\n'
+
+        qsub_name = 'sub' + str(i) + '.qsub'
+        with open(qsub_name, 'w') as fh:
+            print(s1, file=fh)
+
+        cmd = 'qsub {}'.format(qsub_name)
+        print(cmd)
+        # os.system(cmd)
 
 
-def fd_table_status():
-    result = []
-    for fd in range(100):
-        try:
-            s = os.fstat(fd)
-        except:
-            continue
-        for fd_type, func in _fd_types:
-            if func(s.st_mode):
-                break
-        else:
-            fd_type = str(s.st_mode)
-        result.append((fd, fd_type))
-    return result
-
-
-def fd_table_status_logify(fd_table_result):
-    return ('Open file handles: ' +
-            ', '.join(['{0}: {1}'.format(*i) for i in fd_table_result]))
-
-
-def fd_table_status_str():
-    return fd_table_status_logify(fd_table_status())
+def merge_pbs_results(base_name):
+    pass
+    return(0)
 
 
 if __name__ == "__main__":
@@ -1988,12 +2045,18 @@ if __name__ == "__main__":
     pairs1, distance_distribution = find_chain_pairs2(pair_distance, seq_liglen_dict, args.cache_dir)
     pairs1 = remove_homodimers_in_pairs(pairs1)
 
-    # Failing pair:
-    # pairs1 = [('5e5qB', '5e5yA', [24])]
-
-    # Don't run the pair calculations when recreating the full cache:
-    if args.new_cache:
-        print('New cached values have been generated and written to the cache folder. Run this script again without the new cache options to use this new cache creating the pair dataset.')
+    if args.pbs:
+        njobs = len(pairs1)
+        flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir
+        ' -out ' + args.result_file + ' -np ' + args.np + ' -pbs 0' + ' -v ' args.verbose
+        pbs_submission(args.pbs, njobs, flags)
     else:
-        # Do all the calculation in a parallel pool and print the results:
-        mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
+        # Failing pair:
+        # pairs1 = [('5e5qB', '5e5yA', [24])]
+
+        # Don't run the pair calculations when recreating the full cache:
+        if args.new_cache:
+            print('New cached values have been generated and written to the cache folder. Run this script again without the new cache options to use this new cache creating the pair dataset.')
+        else:
+            # Do all the calculation in a parallel pool and print the results:
+            mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
