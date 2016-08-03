@@ -145,7 +145,7 @@ args.scratch_dir = args.scratch_dir.rstrip('/')
 run_dir = os.getcwd()
 if '/' not in args.result_file:
     args.result_file = run_dir + '/' + args.result_file
-if pbs_range:
+if args.pbs_range:
     args.result_file += '_' + args.pbs_range
 
 # Global variables:
@@ -1953,51 +1953,48 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     pool.join()
 
 
-def pbs_submission(nsub, njobs, flags):
+def pbs_submission(nsubs, njobs, flags):
     jobs_per_sub = round(njobs / nsubs + 0.5)
-    script_path = os.path.realpath(__file__)
-    for i in range(nsub):
+    script_path = run_dir + '/' + os.path.abspath(__file__).split('/')[-1]
+    for i in range(nsubs):
         log_err = 'pair_log' + str(i) + '.err'
         log_out = 'pair_log' + str(i) + '.out'
         run_range = str(i * jobs_per_sub) + '-' + str((i + 1) * jobs_per_sub - 1)
 
         s1 = '#!/bin/sh\n\
-        ### Note: No commands may be executed until after the #PBS lines\n\
-        ### Account information\n\
-        #PBS -W group_list=cu_10020 -A cu_10020\n\
-        ### Job name (comment out the next line to get the name of the script used as the job name)\n\
-        #PBS -N krdav_job\n\
-        ### Output files (comment outa the next 2 lines to get the job name used instead)\n' + '#PBS -e ' + log_err + '\n' + '#PBS -o ' + log_out + '\n' + '### Email: no (n)\n\
-        #PBS -M n\n\
-        ### Make the job rerunable (y)\n\
-        #PBS -r y\n\
-        ### Number of nodes\n\
-        #PBS -l nodes=1:ppn=' + str(args.np) + ':thinnode\n\
-        ### Requesting time - 12 hours - overwrites **long** queue setting\n\
-        #PBS -l walltime=24:00:00\n\
-        \n\
-        echo This is the STDOUT stream from a PBS Torque submission script.\n\
-        # Go to the directory from where the job was submitted (initial directory is $HOME)\n\
-        echo Working directory is $PBS_O_WORKDIR\n\
-        cd $PBS_O_WORKDIR\n\
-        \n\
-        # Load user Bash settings:\n\
-        source /home/people/krdav/.bash_profile\n\
-        \n\
-        echo Modules and user Bash settings was loaded.\n\
-        \n\
-        # Catch the time before the intensive calculations:\n\
-        res1=$(date +%s.%N)\n\
-        \n\
-        module unload anaconda2/4.0.0\n\
-        module load anaconda3/4.0.0\n\
-        \n\
-        echo  Now the user defined script is run. After the ---- line, the STDOUT stream from the script is pasted.\n\
-        echo -----------------------------------------------------------------------------------------------------\n\
-        # Run the desired script:\n\
-        python ' + script_path + flags + ' -pbs_range ' + run_range + '\n'
+### Note: No commands may be executed until after the #PBS lines\n\
+### Account information\n\
+#PBS -W group_list=cu_10020 -A cu_10020\n\
+### Job name (comment out the next line to get the name of the script used as the job name)\n\
+#PBS -N krdav_job\n\
+### Output files (comment outa the next 2 lines to get the job name used instead)\n' + '#PBS -e ' + log_err + '\n' + '#PBS -o ' + log_out + '\n' + '### Email: no (n)\n\
+#PBS -M n\n\
+### Make the job rerunable (y)\n\
+#PBS -r y\n\
+### Number of nodes\n\
+#PBS -l nodes=1:ppn=' + str(args.np) + ':thinnode\n\
+### Requesting time - 12 hours - overwrites **long** queue setting\n\
+#PBS -l walltime=24:00:00\n\
+\n\
+echo This is the STDOUT stream from a PBS Torque submission script.\n\
+# Go to the directory from where the job was submitted (initial directory is $HOME)\n\
+echo Working directory is $PBS_O_WORKDIR\n\
+cd $PBS_O_WORKDIR\n\
+\n\
+# Load user Bash settings:\n\
+source /home/people/krdav/.bash_profile\n\
+\n\
+echo Modules and user Bash settings was loaded.\n\
+\n\
+module unload anaconda2/4.0.0\n\
+module load anaconda3/4.0.0\n\
+\n\
+echo  Now the user defined script is run. After the ---- line, the STDOUT stream from the script is pasted.\n\
+echo -----------------------------------------------------------------------------------------------------\n\
+# Run the desired script:\n\
+python ' + script_path + ' ' + flags + ' -pbs_range ' + run_range + '\n'
 
-        qsub_name = 'sub' + str(i) + '.qsub'
+        qsub_name = run_dir + '/sub' + str(i) + '.qsub'
         with open(qsub_name, 'w') as fh:
             print(s1, file=fh)
 
@@ -2048,7 +2045,7 @@ if __name__ == "__main__":
     if args.pbs:
         njobs = len(pairs1)
         flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir
-        ' -out ' + args.result_file + ' -np ' + args.np + ' -pbs 0' + ' -v ' args.verbose
+        ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -pbs 0' + ' -v ' + str(args.verbose)
         pbs_submission(args.pbs, njobs, flags)
     else:
         # Failing pair:
@@ -2060,3 +2057,4 @@ if __name__ == "__main__":
         else:
             # Do all the calculation in a parallel pool and print the results:
             mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np)
+
