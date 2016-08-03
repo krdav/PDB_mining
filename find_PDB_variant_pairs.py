@@ -1739,24 +1739,24 @@ def mp_worker(pair_info):
     of pairwise comparisons are high, then this can be a significant memory
     problem.
     '''
-    print_str = ''  # String to store all the output from one pair tuple
     # Get all information needed by unpacking the pair_info:
     pair_number, pair_tuple, ss_dis_dict, scratch_dir, pdb_folder = pair_info
+    print_str = ''  # String to store all the output from one pair tuple
+    started = len(pair_tuple[0].split('-')) * len(pair_tuple[1].split('-'))
+    completed = 0
     mut_pos_seq = pair_tuple[2][0]
     # Create a tmp folder for this pair and move the PDB files needed:
     try:
         pair_folder, pair_tuple = create_pair_folder(scratch_dir, pair_number, pair_tuple, pdb_folder)
     except Exception as e:
         print(e)
-        return(False)
+        return([False, started, completed])
     if not pair_folder:
-        return(False)
+        return([False, started, completed])
     pdbs_tuple = (tuple(pair_tuple[0].split('-')), tuple(pair_tuple[1].split('-')))
     os.chdir(pair_folder)
 
     # Loop through the all pairs:
-    completed = 0
-    started = 0
     for i in range(len(pdbs_tuple[0])):
         for j in range(len(pdbs_tuple[1])):
             started += 1
@@ -1881,8 +1881,10 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
     # Generate a list of info that is needed for each pair
     # to run indepedently by the worker process:
     pair_info_list = list()
+    n_comparisons = 0
     for pair_number, pair_tuple in enumerate(pairs):
         pair_info_list.append([pair_number, pair_tuple, ss_dis_dict, scratch_dir, pdb_folder])
+        n_comparisons += len(pair_tuple[0].split('-')) * len(pair_tuple[1].split('-'))
     n_pairs = len(pair_info_list)
 
     # Start the pool with X cores:
@@ -1895,14 +1897,15 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
         started = 0
         count = 0
         for result in pool.imap_unordered(mp_worker, pair_info_list):
+            print_str, s, c = result
+            completed += c
+            started += s
             # Print stats:
             count += 1
             if count % 10 == 0:
-                print('Currently {} out of {} pairs have run and {} with success.'.format(started, n_pairs, completed))
-            if result:
-                print_str, s, c = result
-                completed += c
-                started += s
+                print('### {} out of {} pair tuples have been run'.format(count, n_pairs))
+                print('### Currently {} out of {} comparisons have run, {} with success.'.format(started, n_comparisons, completed))
+            if print_str:
                 fh.write(print_str)
 
     pool.close()
