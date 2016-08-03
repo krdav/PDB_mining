@@ -10,6 +10,7 @@ import math
 import contextlib
 import multiprocessing
 import argparse
+import stat
 # Updated biopython on Computerome:
 # if os.uname()[1] == 'computerome02':
 #     sys.path.insert(0, '/home/projects/cu_10020/apps/python3-site-packages/lib/python/')
@@ -1901,6 +1902,7 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
         started = 0
         count = 0
         for result in pool.imap_unordered(mp_worker, pair_info_list):
+            print(fd_table_status_str())
             print_str, s, c = result
             completed += c
             started += s
@@ -1914,6 +1916,42 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np):
 
     pool.close()
     pool.join()
+
+
+_fd_types = (
+    ('REG', stat.S_ISREG),
+    ('FIFO', stat.S_ISFIFO),
+    ('DIR', stat.S_ISDIR),
+    ('CHR', stat.S_ISCHR),
+    ('BLK', stat.S_ISBLK),
+    ('LNK', stat.S_ISLNK),
+    ('SOCK', stat.S_ISSOCK)
+)
+
+
+def fd_table_status():
+    result = []
+    for fd in range(100):
+        try:
+            s = os.fstat(fd)
+        except:
+            continue
+        for fd_type, func in _fd_types:
+            if func(s.st_mode):
+                break
+        else:
+            fd_type = str(s.st_mode)
+        result.append((fd, fd_type))
+    return result
+
+
+def fd_table_status_logify(fd_table_result):
+    return ('Open file handles: ' +
+            ', '.join(['{0}: {1}'.format(*i) for i in fd_table_result]))
+
+
+def fd_table_status_str():
+    return fd_table_status_logify(fd_table_status())
 
 
 if __name__ == "__main__":
