@@ -1911,7 +1911,7 @@ def mp_worker(pair_info):
     return([print_str, started, completed])
 
 
-def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, n_pool):
+def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, np_pool):
     '''
     Multi process handler. Start a pool of processes and queues them
     on a number of cores. Runs the mp_worker and prints the output sequentially.
@@ -1944,7 +1944,6 @@ def mp_handler(pairs, ss_dis_dict, scratch_dir, pdb_folder, result_file, n_pool)
         started = 0
         count = 0
         for result in pool.imap_unordered(mp_worker, pair_info_list):
-            print(fd_table_status_str())
             print_str, s, c = result
             completed += c
             started += s
@@ -2006,62 +2005,70 @@ python ' + script_path + ' ' + flags + ' -pbs_range ' + run_range + '\n'
             print(s1, file=fh)
 
         cmd = 'qsub {}'.format(qsub_name)
-        print(cmd)
-        # os.system(cmd)
+        os.system(cmd)
 
 
 def merge_pbs_results(base_name):
-    pass
+    base_name = base_name.split('/')[0]
+    print_header(base_name)
+    with open(base_name, 'w') as outfile:
+        for file in os.listdir("."):
+            if file.startswith(base_name):
+                with open(file) as infile:
+                    for line in infile:
+                        outfile.write(line)
     return(0)
 
 
 if __name__ == "__main__":
-    # Define quality cutoffs:
-    res = 2.5           # Use minimum 2.5A resolution
-    min_seq_len = 60    # Minimum sequence length to avoid small unstructured proteins
-    pair_distance = 1   # The hamming distance of the pairs to mine for
-
-    # Get the validated PDB IDs:
-    QC_PDB_dict = valid_PDB_dict(args.pdb_folder, res, args.cache_dir)
-    # print(QC_PDB_dict['1ubi'])
-    # print(QC_PDB_dict['5a1a'])
-
-    # Read the missing residue and secondary structure PDB information:
-    ss_dis_dict = parse_ss_dis(args.ss_dis_file, args.cache_dir)
-    # print(len(ss_dis_dict['4bjsA']['disorder']))
-    # print(len(ss_dis_dict['4bjsA']['sequence']))
-    # print(len(ss_dis_dict['4bjsA']['secstr']))
-
-    # Read the BioLIP database:
-    biolip_dict = parse_biolip(args.biolip_fnam, args.cache_dir)
-
-    # Split the PDB chains into bins according to the length of their amino acid sequence:
-    seq_liglen_dict = seq_liglen_bin(min_seq_len, QC_PDB_dict, ss_dis_dict, biolip_dict, args.cache_dir)
-
-    ### Example code to extract pairs that does not have any ligands:
-    # seq_len_dict = seq_liglen_dict['no_lig']
-    # seq_len_dict = dedup_seq_len_dict(seq_len_dict)  # Currently deprecated since this function is moved into the seq_liglen_bin function
-    # pairs1, distance_distribution = find_chain_pairs(pair_distance, seq_liglen_dict, args.cache_dir)
-    ##########
-
-    # Find the pairs of PDB IDs that deviate by a single amino acid:
-    # seq_liglen_dict = dedup_seq_liglen_dict(seq_liglen_dict)  # Currently deprecated since this function is moved into the seq_liglen_bin function
-    pairs1, distance_distribution = find_chain_pairs2(pair_distance, seq_liglen_dict, args.cache_dir)
-    pairs1 = remove_homodimers_in_pairs(pairs1)
-
-    if args.pbs:
-        njobs = len(pairs1)
-        flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir
-        ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -np ' + str(args.np_pool) + ' -pbs 0' + ' -v ' + str(args.verbose)
-        pbs_submission(args.pbs, njobs, flags)
+    if args.merge:
+        merge_pbs_results(args.result_file)
     else:
-        # Failing pair:
-        # pairs1 = [('5e5qB', '5e5yA', [24])]
+        # Define quality cutoffs:
+        res = 2.5           # Use minimum 2.5A resolution
+        min_seq_len = 60    # Minimum sequence length to avoid small unstructured proteins
+        pair_distance = 1   # The hamming distance of the pairs to mine for
 
-        # Don't run the pair calculations when recreating the full cache:
-        if args.new_cache:
-            print('New cached values have been generated and written to the cache folder. Run this script again without the new cache options to use this new cache creating the pair dataset.')
+        # Get the validated PDB IDs:
+        QC_PDB_dict = valid_PDB_dict(args.pdb_folder, res, args.cache_dir)
+        # print(QC_PDB_dict['1ubi'])
+        # print(QC_PDB_dict['5a1a'])
+
+        # Read the missing residue and secondary structure PDB information:
+        ss_dis_dict = parse_ss_dis(args.ss_dis_file, args.cache_dir)
+        # print(len(ss_dis_dict['4bjsA']['disorder']))
+        # print(len(ss_dis_dict['4bjsA']['sequence']))
+        # print(len(ss_dis_dict['4bjsA']['secstr']))
+
+        # Read the BioLIP database:
+        biolip_dict = parse_biolip(args.biolip_fnam, args.cache_dir)
+
+        # Split the PDB chains into bins according to the length of their amino acid sequence:
+        seq_liglen_dict = seq_liglen_bin(min_seq_len, QC_PDB_dict, ss_dis_dict, biolip_dict, args.cache_dir)
+
+        ### Example code to extract pairs that does not have any ligands:
+        # seq_len_dict = seq_liglen_dict['no_lig']
+        # seq_len_dict = dedup_seq_len_dict(seq_len_dict)  # Currently deprecated since this function is moved into the seq_liglen_bin function
+        # pairs1, distance_distribution = find_chain_pairs(pair_distance, seq_liglen_dict, args.cache_dir)
+        ##########
+
+        # Find the pairs of PDB IDs that deviate by a single amino acid:
+        # seq_liglen_dict = dedup_seq_liglen_dict(seq_liglen_dict)  # Currently deprecated since this function is moved into the seq_liglen_bin function
+        pairs1, distance_distribution = find_chain_pairs2(pair_distance, seq_liglen_dict, args.cache_dir)
+        pairs1 = remove_homodimers_in_pairs(pairs1)
+        os.chdir(run_dir)
+
+        if args.pbs:
+            njobs = len(pairs1)
+            flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir + ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -np ' + str(args.np_pool) + ' -pbs 0' + ' -v ' + str(args.verbose)
+            pbs_submission(args.pbs, njobs, flags)
         else:
-            # Do all the calculation in a parallel pool and print the results:
-            mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np_pool)
+            # Failing pair:
+            # pairs1 = [('5e5qB', '5e5yA', [24])]
 
+            # Don't run the pair calculations when recreating the full cache:
+            if args.new_cache:
+                print('New cached values have been generated and written to the cache folder. Run this script again without the new cache options to use this new cache creating the pair dataset.')
+            else:
+                # Do all the calculation in a parallel pool and print the results:
+                mp_handler(pairs1, ss_dis_dict, args.scratch_dir, args.pdb_folder, args.result_file, args.np_pool)
