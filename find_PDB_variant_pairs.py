@@ -730,11 +730,13 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
         pdb_file = chainID[0:-1]   # Cut away the chain ID
         folder_key = pdb_file[1:3]  # Notice this is PDB convention and for custom files this should be a adapted
         pdb_path = '{}/{}/pdb{}.ent.gz'.format(pdb_folder, folder_key, pdb_file)
-        fh_out = open('{}/{}'.format(pair_folder, pdb_file), 'w')
+        # fh_out = open('{}/{}'.format(pair_folder, pdb_file), 'w')
         # See if the file exists:
         if not os.path.exists(pdb_path):
             missing.apppend(chainID)
             continue
+        fnam_out = '{}/{}'.format(pair_folder, pdb_file)
+        fh_out = open(fnam_out, 'w')
         # Notice this is opened directly as gzipped and therefore comes in binary:
         with gzip.open(pdb_path, 'r') as fh_in:
             lines = fh_in.readlines()
@@ -749,6 +751,8 @@ def create_pair_folder(scratch_dir, pair_number, pair, pdb_folder):
                     if args.verbose:
                         print('Residue found in blacklist for PDB:', pdb_file)
                     missing.append(chainID)
+                    fh_out.close()
+                    os.remove(fnam_out)
                     break
         fh_out.close()
     # Remake the pair tuple, if any missing files or blacklisted residues:
