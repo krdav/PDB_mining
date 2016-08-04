@@ -148,6 +148,7 @@ args = parser.parse_args()
 # Remove trialing slashes from directory names:
 args.pdb_folder = args.pdb_folder.rstrip('/')
 args.scratch_dir = args.scratch_dir.rstrip('/')
+args.result_file = args.result_file.rstrip('/')
 
 run_dir = os.getcwd()
 if '/' not in args.result_file:
