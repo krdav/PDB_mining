@@ -2010,14 +2010,16 @@ python ' + script_path + ' ' + flags + ' -pbs_range ' + run_range + '\n'
 
 
 def merge_pbs_results(base_name):
-    print(base_name)
-    base_name = base_name.split('/')[0]
+    os.chdir(run_dir)
+    base_name = base_name.split('/')[-1]
     print_header(base_name)
     with open(base_name, 'w') as outfile:
-        for file in os.listdir("."):
-            if file.startswith(base_name):
-                with open(file) as infile:
+        for f in os.listdir("."):
+            print(f)
+            if f.startswith(base_name + '_'):
+                with open(f) as infile:
                     for line in infile:
+                        pass
                         outfile.write(line)
     return(0)
 
