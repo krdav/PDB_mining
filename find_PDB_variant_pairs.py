@@ -2010,6 +2010,7 @@ python ' + script_path + ' ' + flags + ' -pbs_range ' + run_range + '\n'
 
 
 def merge_pbs_results(base_name):
+    print(base_name)
     base_name = base_name.split('/')[0]
     print_header(base_name)
     with open(base_name, 'w') as outfile:
