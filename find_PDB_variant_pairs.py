@@ -2015,11 +2015,9 @@ def merge_pbs_results(base_name):
     print_header(base_name)
     with open(base_name, 'w') as outfile:
         for f in os.listdir("."):
-            print(f)
             if f.startswith(base_name + '_'):
                 with open(f) as infile:
                     for line in infile:
-                        pass
                         outfile.write(line)
     return(0)
 
@@ -2064,7 +2062,7 @@ if __name__ == "__main__":
 
         if args.pbs:
             njobs = len(pairs1)
-            flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir + ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -np ' + str(args.np_pool) + ' -pbs 0' + ' -v ' + str(args.verbose)
+            flags = '-cache_dir ' + args.cache_dir + ' -ss_dis ' + args.ss_dis_file + ' -pdb ' + args.pdb_folder + ' -biolip ' + args.biolip_fnam + ' -scratch ' + args.scratch_dir + ' -out ' + args.result_file + ' -np ' + str(args.np) + ' -npool ' + str(args.np_pool) + ' -pbs 0' + ' -v ' + str(args.verbose)
             pbs_submission(args.pbs, njobs, flags)
         else:
             # Failing pair:
