@@ -1,0 +1,31 @@
+
+Access:
+https://www.dropbox.com/sh/x7patueexkvigwf/AAC8GG7GkgN5Y0-k-Xis3CBoa?dl=0
+
+Content:
+phi_psi_vs_dist.gz  <- All recorded data
+bb_movements.tab.gz <- Most relevant subset of phi_psi_vs_dist.gz
+
+Desc:
+These files contain data on protein pairs differing by just a single mutation.
+They are mined from PDB and QC checked.
+Data are extracted for all amino acids in the pair each geting their own data row i.e. a pair will have many data rows consecutively listed from N to C terminal.
+To locate the position/row that has been mutated use the distance measure, the mutation is at 0 distance both 1D and 3D.
+
+Fields (bb_movements only, for more details on all recorded data study the code):
+pair_name: PDBfile1 dash PDBfile2
+prot_len: Length of the protein
+AA_wt: AA in PDBfile1
+AA_mut: AA in PDBfile2
+ss_wt: DSSP class in PDBfile1
+ss_mut: DSSP class in PDBfile2
+RASA_wt: Relative surface accessibility in PDBfile1
+RASA_mut: Relative surface accessibility in PDBfile2
+_3D_dist: Carbon alpha distance to mutated AA
+_1D_dist: Protein sequence distance to mutated AA
+N_dist: Distance from N terminal
+C_dist: Distance from C terminal
+dphi: Delta phi angle
+dpsi: Delta psi angle
+
+
